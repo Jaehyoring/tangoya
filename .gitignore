@@ -19,6 +19,10 @@ dist/kuromoji.js
 # 배포용 폴더 (대용량 바이너리 포함, git 추적 제외)
 release/
 
+# PyInstaller 빌드 산출물
+build/pyinstaller_out/
+build/pyinstaller_work/
+
 # dist/ 내 소스 파일은 추적
 # dist/tangoya.html, dist/tangoya_template.html, dist/fonts/fonts.css,
 # dist/start_server.py 는 git으로 관리

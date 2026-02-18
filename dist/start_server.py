@@ -29,9 +29,21 @@ import urllib.error
 import re
 
 # ─────────────────────────────────────────────────────────────
-# 경로 설정 (이 파일이 있는 dist/ 폴더 기준)
+# 경로 설정
 # ─────────────────────────────────────────────────────────────
-DIST_DIR  = os.path.dirname(os.path.abspath(__file__))
+# PyInstaller .app 번들로 실행될 때:
+#   실행 파일 위치: tangoya.app/Contents/MacOS/tangoya
+#   에셋 위치:      tangoya.app/../  (즉 .app 파일 옆)
+# 일반 스크립트로 실행될 때:
+#   __file__ 기준 폴더가 바로 에셋 폴더
+def _find_asset_dir():
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 번들: 실행파일의 3단계 위 (.app의 부모 폴더)
+        exe_path = os.path.abspath(sys.executable)          # .app/Contents/MacOS/tangoya
+        return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(exe_path))))
+    return os.path.dirname(os.path.abspath(__file__))
+
+DIST_DIR  = _find_asset_dir()
 DICT_DIR  = os.path.join(DIST_DIR, 'dict')
 FONTS_DIR = os.path.join(DIST_DIR, 'fonts')
 
