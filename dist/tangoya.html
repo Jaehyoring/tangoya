@@ -2099,7 +2099,7 @@
   <!-- ⑤ 로딩 -->
   <div id="loading" aria-live="polite" aria-label="분석 중">
     <div class="spinner"></div>
-    <span>형태소 분석 중...</span>
+    <span id="loadingMsg">형태소 분석 중...</span>
   </div>
 
   <!-- ⑥ 결과 영역 -->
@@ -2187,6 +2187,13 @@
 
   (async () => {
     try {
+      // 초기화 중 로딩 표시
+      showLoading(true);
+      const loadingMsg = document.getElementById('loadingMsg');
+      const analyzeBtn = document.getElementById('analyzeBtn');
+      if (analyzeBtn) { analyzeBtn.disabled = true; analyzeBtn.style.opacity = '0.4'; }
+      if (loadingMsg) loadingMsg.textContent = '사전 및 형태소 분석기 초기화 중...';
+
       // file:// 프로토콜 경고
       if (location.protocol === 'file:') {
         showError(
@@ -2207,11 +2214,17 @@
       applyStoredCriteria(); // 분류기준 반영
       await waitForKuromoji();
       tokenizer = await initKuromoji();
+      showLoading(false);
+      if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.style.opacity = ''; }
+      if (loadingMsg) loadingMsg.textContent = '형태소 분석 중...';
       console.log('tangoya 준비 완료:', Object.keys(JLPT_DICT).length, '개 단어');
+      // 포커스
+      const ta = document.getElementById('inputText');
+      if (ta) ta.focus();
     } catch (err) {
+      showLoading(false);
       initFailed = true;
-      const btn = document.getElementById('analyzeBtn');
-      if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+      if (analyzeBtn) { analyzeBtn.disabled = true; analyzeBtn.style.opacity = '0.4'; }
       const detail = err.message || String(err);
       showError('형태소 분석기 초기화에 실패했습니다: ' + detail);
       console.error('Kuromoji 초기화 실패:', err);
