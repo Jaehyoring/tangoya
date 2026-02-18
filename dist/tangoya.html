@@ -1248,6 +1248,14 @@
       75%      { transform: translateX(6px); }
     }
 
+    @keyframes dictUpdatedFlash {
+      0%   { color: #00e676; text-shadow: 0 0 8px rgba(0,230,118,0.7); }
+      100% { color: inherit; text-shadow: none; }
+    }
+    .dict-updated-flash {
+      animation: dictUpdatedFlash 1.2s ease-out forwards;
+    }
+
     .admin-pw-error {
       font-size: 12px;
       color: #ff4d6d;
@@ -2364,13 +2372,22 @@
   const CUSTOM_WORDS_KEY  = 'tangoya_custom_words';
   const DICT_UPDATED_KEY  = 'tangoya_dict_updated'; // 사전 갱신일 { updated: 'YYYY-MM-DD' }
 
-  /** 오늘 날짜(YYYY-MM-DD)를 사전 갱신일로 기록 */
+  /** 현재 날짜+시간(YYYY-MM-DD HH:MM)을 사전 갱신일로 기록 */
   function touchDictUpdated() {
-    const today = new Date().toISOString().slice(0, 10);
-    localStorage.setItem(DICT_UPDATED_KEY, today);
-    // 푸터 갱신일 표시 업데이트
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} `
+                + `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    localStorage.setItem(DICT_UPDATED_KEY, stamp);
+    // 푸터 갱신일 표시 업데이트 + 하이라이트 효과
     const el = document.getElementById('footerDictUpdated');
-    if (el) el.textContent = today;
+    if (el) {
+      el.textContent = stamp;
+      el.classList.remove('dict-updated-flash');
+      // reflow 강제하여 애니메이션 재실행
+      void el.offsetWidth;
+      el.classList.add('dict-updated-flash');
+    }
   }
 
   /** 저장된 사전 갱신일 반환. 한 번도 수정한 적 없으면 '-' 표시 */
