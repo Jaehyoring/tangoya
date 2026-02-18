@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <!-- Kuromoji.js (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" crossorigin="anonymous"></script>
 
   <style>
     /* ══════════════════════════════════════════
@@ -2172,6 +2172,18 @@
     });
   }
 
+  /** kuromoji 전역 변수가 로드될 때까지 최대 10초 대기 */
+  function waitForKuromoji(timeout = 10000) {
+    return new Promise((resolve, reject) => {
+      if (typeof kuromoji !== 'undefined') { resolve(); return; }
+      const start = Date.now();
+      const check = setInterval(() => {
+        if (typeof kuromoji !== 'undefined') { clearInterval(check); resolve(); }
+        else if (Date.now() - start > timeout) { clearInterval(check); reject(new Error('kuromoji is not defined')); }
+      }, 50);
+    });
+  }
+
   (async () => {
     try {
       // file:// 프로토콜 경고
@@ -2185,6 +2197,7 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
         return;
       }
+      await waitForKuromoji();
       tokenizer = await initKuromoji();
       console.log('tangoya 준비 완료:', Object.keys(JLPT_DICT).length, '개 단어');
     } catch (err) {
