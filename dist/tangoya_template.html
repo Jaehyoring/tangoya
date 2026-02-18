@@ -2146,7 +2146,7 @@
   // ══════════════════════════════════════════════════════
   // 작업 1: JLPT_DICT 내장 데이터
   // ══════════════════════════════════════════════════════
-  // __JLPT_DICT_PLACEHOLDER__
+  let JLPT_DICT = {};
 
   // ══════════════════════════════════════════════════════
   // 작업 2: Kuromoji 초기화
@@ -2197,6 +2197,13 @@
         if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
         return;
       }
+      // JLPT_DICT를 jlpt_dict.json에서 비동기 로드 (메인 스레드 블로킹 방지)
+      const dictResp = await fetch('jlpt_dict.json');
+      if (!dictResp.ok) throw new Error('jlpt_dict.json 로드 실패: ' + dictResp.status);
+      Object.assign(JLPT_DICT, await dictResp.json());
+      applyStoredEdits();    // 한국어 뜻 사용자 편집 반영
+      applyCustomWords();    // 커스텀 단어 반영
+      applyStoredCriteria(); // 분류기준 반영
       await waitForKuromoji();
       tokenizer = await initKuromoji();
       console.log('tangoya 준비 완료:', Object.keys(JLPT_DICT).length, '개 단어');
@@ -3100,9 +3107,6 @@
   // Enter 키 바인딩 (Shift+Enter 제외)
   // ══════════════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', () => {
-    applyStoredEdits();
-    applyCustomWords();      // 커스텀 단어 → JLPT_DICT 반영
-    applyStoredCriteria();   // 분류기준 CSV → JLPT_DICT 레벨 오버라이드 + UI 업데이트
     // 저장된 테마 복원 (없으면 라이트 모드 기본)
     const savedTheme = localStorage.getItem(THEME_KEY);
     applyTheme(savedTheme || 'light');
