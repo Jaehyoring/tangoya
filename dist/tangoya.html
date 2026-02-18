@@ -1527,6 +1527,322 @@
     body.admin-mode #wordAddBtn {
       display: flex;
     }
+
+    /* 툴바 CSV 기준 업로드 버튼 (관리자 모드에서만 표시) */
+    #criteriaBtn {
+      display: none;
+      font-size: 12px;
+      width: auto;
+      padding: 0 10px;
+      gap: 4px;
+      white-space: nowrap;
+      background: rgba(96,160,255,0.08);
+      border-color: rgba(96,160,255,0.35);
+      color: #7ab4ff;
+    }
+
+    body.admin-mode #criteriaBtn {
+      display: flex;
+    }
+
+    #criteriaBtn:hover {
+      background: rgba(96,160,255,0.18) !important;
+      border-color: rgba(96,160,255,0.7) !important;
+      color: #a8d0ff !important;
+    }
+
+    /* 기준 적용 중일 때 강조 */
+    #criteriaBtn.criteria-active {
+      background: rgba(255,180,0,0.10);
+      border-color: rgba(255,180,0,0.50);
+      color: #ffb400;
+    }
+
+    #criteriaBtn.criteria-active:hover {
+      background: rgba(255,180,0,0.20) !important;
+      border-color: #ffb400 !important;
+      color: #ffb400 !important;
+    }
+
+    /* ── CSV 분류기준 업로드 모달 ── */
+    #criteriaModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+    }
+
+    #criteriaModal.visible {
+      display: block;
+    }
+
+    .criteria-modal-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 28px 22px;
+      width: min(560px, 94vw);
+      max-height: 85vh;
+      overflow-y: auto;
+      z-index: 9001;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+    }
+
+    .criteria-modal-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 드래그&드롭 영역 */
+    .criteria-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      background: var(--surface2);
+      margin-bottom: 14px;
+    }
+
+    .criteria-drop-zone:hover,
+    .criteria-drop-zone.drag-over {
+      border-color: #ffb400;
+      background: rgba(255,180,0,0.07);
+    }
+
+    .criteria-drop-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .criteria-drop-text {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .criteria-drop-text strong {
+      color: #ffb400;
+      cursor: pointer;
+    }
+
+    #criteriaFileInput {
+      display: none;
+    }
+
+    /* 현재 기준 상태 배지 */
+    .criteria-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border-radius: 8px;
+    }
+
+    .criteria-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .criteria-status-dot.active {
+      background: #00e676;
+    }
+
+    .criteria-status-dot.inactive {
+      background: var(--muted);
+    }
+
+    /* 미리보기 테이블 */
+    .criteria-preview-wrap {
+      margin-bottom: 14px;
+    }
+
+    .criteria-preview-label {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .criteria-preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .criteria-preview-table th {
+      background: rgba(255,180,0,0.15);
+      color: #ffb400;
+      font-weight: 600;
+      padding: 5px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .criteria-preview-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .criteria-preview-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .criteria-preview-table tr:nth-child(even) td {
+      background: var(--surface2);
+    }
+
+    .criteria-preview-more {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .criteria-parse-error {
+      font-size: 11px;
+      color: #ff4d6d;
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 10px;
+      min-height: 16px;
+    }
+
+    /* 기준 이름 입력 */
+    .criteria-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .criteria-name-label {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .criteria-name-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .criteria-name-input:focus {
+      border-color: #ffb400;
+    }
+
+    /* 모달 버튼 행 */
+    .criteria-modal-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .btn-criteria-cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .btn-criteria-cancel:hover {
+      border-color: var(--muted);
+      color: var(--text);
+    }
+
+    .btn-criteria-clear {
+      background: transparent;
+      border: 1px solid rgba(255,77,109,0.4);
+      border-radius: 8px;
+      color: #ff4d6d;
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-criteria-clear:hover {
+      background: rgba(255,77,109,0.08);
+    }
+
+    .btn-criteria-apply {
+      background: #ffb400;
+      border: none;
+      border-radius: 8px;
+      color: #1a1000;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      padding: 7px 20px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-criteria-apply:hover {
+      opacity: 0.88;
+    }
+
+    .btn-criteria-apply:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* 범례에 기준명 배지 */
+    .legend-criteria-badge {
+      display: none;
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: #ffb400;
+      background: rgba(255,180,0,0.12);
+      border: 1px solid rgba(255,180,0,0.35);
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-left: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .legend-criteria-badge.visible {
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -1539,6 +1855,74 @@
     <button class="tb-btn" id="wordAddBtn" onclick="openWordAddModal()" title="단어 추가">＋</button>
     <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
     <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">⬇ 사전</button>
+    <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋 기준</button>
+  </div>
+
+  <!-- CSV 레벨 분류기준 업로드 모달 -->
+  <div id="criteriaModal" role="dialog" aria-modal="true" aria-labelledby="criteriaModalTitle">
+    <div class="lang-modal-backdrop" onclick="closeCriteriaModal()"></div>
+    <div class="criteria-modal-box">
+      <div class="criteria-modal-title">
+        <span>📋</span>
+        <span id="criteriaModalTitle">레벨 분류기준 CSV 업로드</span>
+      </div>
+
+      <!-- 현재 적용 기준 상태 -->
+      <div class="criteria-status" id="criteriaStatus">
+        <span class="criteria-status-dot inactive" id="criteriaStatusDot"></span>
+        <span id="criteriaStatusText">현재 적용된 기준 없음 (기본 JLPT 사전 사용)</span>
+      </div>
+
+      <!-- 드래그&드롭 / 파일 선택 영역 -->
+      <div class="criteria-drop-zone" id="criteriaDropZone"
+           onclick="document.getElementById('criteriaFileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="event.preventDefault();this.classList.remove('drag-over');handleCriteriaFileDrop(event)">
+        <div class="criteria-drop-icon">📄</div>
+        <div class="criteria-drop-text">
+          CSV 파일을 여기에 드래그하거나<br>
+          <strong onclick="event.stopPropagation();document.getElementById('criteriaFileInput').click()">클릭하여 파일 선택</strong>
+        </div>
+        <div class="criteria-drop-text" style="margin-top:6px;font-size:10px;">
+          형식: 읽기(히라가나), 한자, 분류기준(N1~N5 또는 커스텀)
+        </div>
+      </div>
+      <input type="file" id="criteriaFileInput" accept=".csv,.txt"
+             onchange="handleCriteriaFileSelect(event)">
+
+      <!-- 파싱 오류 -->
+      <div class="criteria-parse-error" id="criteriaParseError"></div>
+
+      <!-- 기준 이름 입력 -->
+      <div class="criteria-name-row">
+        <span class="criteria-name-label">기준 이름:</span>
+        <input type="text" id="criteriaNameInput" class="criteria-name-input"
+               placeholder="예) 교재 A — 레벨 기준" maxlength="40"
+               onkeydown="if(event.key==='Escape')closeCriteriaModal()">
+      </div>
+
+      <!-- 미리보기 테이블 -->
+      <div class="criteria-preview-wrap" id="criteriaPreviewWrap" style="display:none">
+        <div class="criteria-preview-label">PREVIEW — 파싱된 항목 (상위 10개)</div>
+        <table class="criteria-preview-table">
+          <thead>
+            <tr>
+              <th>읽기</th><th>한자</th><th>분류기준</th>
+            </tr>
+          </thead>
+          <tbody id="criteriaPreviewBody"></tbody>
+        </table>
+        <div class="criteria-preview-more" id="criteriaPreviewMore"></div>
+      </div>
+
+      <!-- 버튼 행 -->
+      <div class="criteria-modal-btns">
+        <button class="btn-criteria-cancel" onclick="closeCriteriaModal()">닫기</button>
+        <button class="btn-criteria-clear" onclick="clearCriteria()" id="criteriaClearBtn">기준 초기화</button>
+        <button class="btn-criteria-apply" id="criteriaApplyBtn" disabled onclick="applyCriteriaParsed()">적용</button>
+      </div>
+    </div>
   </div>
 
   <!-- 관리자 패스워드 모달 -->
@@ -1650,33 +2034,34 @@
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--N1)"></span>
       <span class="lv-label">N1</span>
-      <span>상급</span>
+      <span id="legendLabelN1">상급</span>
     </div>
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--N2)"></span>
       <span class="lv-label">N2</span>
-      <span>중상급</span>
+      <span id="legendLabelN2">중상급</span>
     </div>
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--N3)"></span>
       <span class="lv-label">N3</span>
-      <span>중급</span>
+      <span id="legendLabelN3">중급</span>
     </div>
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--N4)"></span>
       <span class="lv-label">N4</span>
-      <span>초중급</span>
+      <span id="legendLabelN4">초중급</span>
     </div>
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--N5)"></span>
       <span class="lv-label">N5</span>
-      <span>초급</span>
+      <span id="legendLabelN5">초급</span>
     </div>
     <div class="legend-item">
       <span class="legend-dot" style="background:var(--EX)"></span>
       <span class="lv-label">外</span>
       <span>미등재</span>
     </div>
+    <span class="legend-criteria-badge" id="legendCriteriaBadge"></span>
   </nav>
 
   <!-- ③ 입력 카드 -->
@@ -1726,7 +2111,7 @@
     <span class="app-footer-sep">·</span>
     <span class="app-footer-item">버전 <strong>v1.0</strong></span>
     <span class="app-footer-sep">·</span>
-    <span class="app-footer-item">일본어 단어 판별 기준 <strong>네이버 일본어 사전</strong></span>
+    <span class="app-footer-item">일본어 단어 판별 기준 <strong id="footerCriteriaName">네이버 일본어 사전</strong></span>
     <span class="app-footer-sep">·</span>
     <span class="app-footer-item">사전 갱신일 <strong id="footerDictUpdated">-</strong></span>
   </footer>
@@ -1988,14 +2373,9 @@
     if (el) el.textContent = today;
   }
 
-  /** 저장된 사전 갱신일 반환. 아직 저장된 값이 없으면 오늘 날짜로 초기화 */
+  /** 저장된 사전 갱신일 반환. 한 번도 수정한 적 없으면 '-' 표시 */
   function getDictUpdated() {
-    let stored = localStorage.getItem(DICT_UPDATED_KEY);
-    if (!stored) {
-      stored = new Date().toISOString().slice(0, 10);
-      localStorage.setItem(DICT_UPDATED_KEY, stored);
-    }
-    return stored;
+    return localStorage.getItem(DICT_UPDATED_KEY) || '-';
   }
 
   // ══════════════════════════════════════════════════════
@@ -2528,17 +2908,27 @@
   // ══════════════════════════════════════════════════════
   // 테마 (라이트 / 다크)
   // ══════════════════════════════════════════════════════
-  const THEME_KEY = 'tangoya_theme';
+  const THEME_KEY         = 'tangoya_theme';
+  const THEME_VERSION_KEY = 'tangoya_theme_ver';
+  const THEME_VERSION     = '2';   // 라이트 모드 기본으로 전환한 버전
+
+  // 이전 버전 기록이 없으면 테마를 light로 초기화 (최초 방문 또는 버전 업)
+  (function migrateTheme() {
+    if (localStorage.getItem(THEME_VERSION_KEY) !== THEME_VERSION) {
+      localStorage.setItem(THEME_KEY, 'light');
+      localStorage.setItem(THEME_VERSION_KEY, THEME_VERSION);
+    }
+  })();
 
   function applyTheme(theme) {
     if (theme === 'light') {
       document.body.classList.add('light-mode');
       const btn = document.getElementById('themeBtn');
-      if (btn) btn.textContent = '☀️';
+      if (btn) btn.textContent = '🌙';   // 라이트 모드 중 → 버튼 누르면 다크로
     } else {
       document.body.classList.remove('light-mode');
       const btn = document.getElementById('themeBtn');
-      if (btn) btn.textContent = '🌙';
+      if (btn) btn.textContent = '☀️';   // 다크 모드 중 → 버튼 누르면 라이트로
     }
     localStorage.setItem(THEME_KEY, theme);
     // LEVEL_COLOR도 테마에 따라 갱신
@@ -2679,9 +3069,11 @@
   // ══════════════════════════════════════════════════════
   document.addEventListener('DOMContentLoaded', () => {
     applyStoredEdits();
-    applyCustomWords();   // 커스텀 단어 → JLPT_DICT 반영
-    // 저장된 테마 복원
-    applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+    applyCustomWords();      // 커스텀 단어 → JLPT_DICT 반영
+    applyStoredCriteria();   // 분류기준 CSV → JLPT_DICT 레벨 오버라이드 + UI 업데이트
+    // 저장된 테마 복원 (없으면 라이트 모드 기본)
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    applyTheme(savedTheme || 'light');
     // 푸터 사전 갱신일 표시
     const footerEl = document.getElementById('footerDictUpdated');
     if (footerEl) footerEl.textContent = getDictUpdated();
@@ -3185,6 +3577,7 @@
     if (!field || isNaN(origIdx) || value === '') return;
 
     saveAdminEdit(lastResult.input, origIdx, field, value);
+    touchDictUpdated();  // 관리자 편집 시 사전 갱신일 기록
 
     // lastResult.tokens에 즉시 반영
     lastResult.tokens = lastResult.tokens.map(tk => {
@@ -3388,6 +3781,283 @@
     const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
     downloadFile(header + '\n' + csvRows.join('\n'),
                  `tangoya_dict_${today}.csv`, 'text/csv');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 레벨 분류기준 CSV 업로드 기능
+  // ══════════════════════════════════════════════════════
+
+  const CUSTOM_CRITERIA_KEY = 'tangoya_custom_criteria';
+  // 저장 형식: { name: '기준명', entries: [{reading, surface, level}, ...] }
+
+  const criteriaStore = createStore(CUSTOM_CRITERIA_KEY, null);
+
+  /** localStorage에서 분류기준 로드 */
+  function loadCriteria() { return criteriaStore.load(); }
+
+  /** 분류기준을 localStorage에 저장 */
+  function saveCriteria(data) { criteriaStore.save(data); }
+
+  /**
+   * 저장된 분류기준을 JLPT_DICT에 즉시 반영.
+   * entries 각 항목의 level로 해당 surface / reading 키를 덮어씀.
+   */
+  function applyCriteriaToDict(entries) {
+    entries.forEach(e => {
+      const lv = e.level.trim();
+      if (!lv) return;
+      // surface 키 업데이트 (기존 entry 유지, level만 변경)
+      if (e.surface && JLPT_DICT[e.surface]) {
+        JLPT_DICT[e.surface] = Object.assign({}, JLPT_DICT[e.surface], { l: lv });
+      } else if (e.surface) {
+        JLPT_DICT[e.surface] = { r: e.reading || e.surface, l: lv, k: '-' };
+      }
+      // reading 키도 동기화
+      if (e.reading && e.reading !== e.surface) {
+        if (JLPT_DICT[e.reading]) {
+          JLPT_DICT[e.reading] = Object.assign({}, JLPT_DICT[e.reading], { l: lv });
+        } else {
+          JLPT_DICT[e.reading] = { r: e.reading, l: lv, k: '-' };
+        }
+      }
+    });
+  }
+
+  /**
+   * 페이지 로드 시 저장된 분류기준을 자동 반영하고 UI 업데이트.
+   */
+  function applyStoredCriteria() {
+    const saved = loadCriteria();
+    if (!saved || !Array.isArray(saved.entries) || saved.entries.length === 0) return;
+    applyCriteriaToDict(saved.entries);
+    updateCriteriaUI(saved.name || '사용자 정의 기준');
+  }
+
+  /**
+   * 범례 배지 + 푸터 + 모달 상태 패널을 업데이트.
+   * name이 null이면 "기본 JLPT 사전"으로 리셋.
+   */
+  function updateCriteriaUI(name) {
+    // 범례 배지
+    const badge = document.getElementById('legendCriteriaBadge');
+    if (badge) {
+      if (name) {
+        badge.textContent = '기준: ' + name;
+        badge.classList.add('visible');
+      } else {
+        badge.textContent = '';
+        badge.classList.remove('visible');
+      }
+    }
+    // 푸터 판별기준
+    const footerCriteria = document.getElementById('footerCriteriaName');
+    if (footerCriteria) {
+      footerCriteria.textContent = name || '네이버 일본어 사전';
+    }
+    // 모달 상태 패널 (모달이 열려있을 때만 의미 있지만 항상 동기화)
+    const dot  = document.getElementById('criteriaStatusDot');
+    const text = document.getElementById('criteriaStatusText');
+    if (dot && text) {
+      if (name) {
+        dot.className  = 'criteria-status-dot active';
+        text.textContent = '적용 중: ' + name;
+      } else {
+        dot.className  = 'criteria-status-dot inactive';
+        text.textContent = '현재 적용된 기준 없음 (기본 JLPT 사전 사용)';
+      }
+    }
+    // 툴바 버튼 강조 + 레이블 업데이트
+    const btn = document.getElementById('criteriaBtn');
+    if (btn) {
+      if (name) {
+        btn.classList.add('criteria-active');
+        btn.title = '적용 중: ' + name + ' (클릭하여 변경)';
+        btn.innerHTML = '✦ 기준';
+      } else {
+        btn.classList.remove('criteria-active');
+        btn.title = '레벨 분류 기준 CSV 업로드';
+        btn.innerHTML = '📋 기준';
+      }
+    }
+  }
+
+  // ── 모달 열기 / 닫기 ─────────────────────────────────
+
+  let _criteriaParsed = null; // 파싱 완료된 entries 임시 보관
+
+  function openCriteriaModal() {
+    _criteriaParsed = null;
+    // 파싱 오류 초기화
+    document.getElementById('criteriaParseError').textContent = '';
+    // 적용 버튼 비활성
+    document.getElementById('criteriaApplyBtn').disabled = true;
+    // 미리보기 숨김
+    document.getElementById('criteriaPreviewWrap').style.display = 'none';
+
+    // 현재 저장된 기준 이름 반영
+    const saved = loadCriteria();
+    const nameInput = document.getElementById('criteriaNameInput');
+    if (nameInput) nameInput.value = saved ? (saved.name || '') : '';
+
+    // 상태 패널 업데이트
+    updateCriteriaUI(saved ? saved.name : null);
+
+    document.getElementById('criteriaModal').classList.add('visible');
+    setTimeout(() => nameInput && nameInput.focus(), 60);
+  }
+
+  function closeCriteriaModal() {
+    document.getElementById('criteriaModal').classList.remove('visible');
+    _criteriaParsed = null;
+  }
+
+  // ── CSV 파일 처리 ─────────────────────────────────────
+
+  function handleCriteriaFileSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = ''; // 같은 파일 재선택 허용
+    if (!file) return;
+    readCriteriaFile(file);
+  }
+
+  function handleCriteriaFileDrop(event) {
+    const file = event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!file) return;
+    readCriteriaFile(file);
+  }
+
+  function readCriteriaFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => parseCriteriaCSV(e.target.result, file.name);
+    reader.onerror = () => {
+      document.getElementById('criteriaParseError').textContent = '파일을 읽을 수 없습니다.';
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  /**
+   * CSV 파싱: 헤더 행 자동 감지, 빈 줄·주석(#) 스킵
+   * 형식: 읽기(히라가나), 한자, 분류기준
+   */
+  function parseCriteriaCSV(text, filename) {
+    const errEl = document.getElementById('criteriaParseError');
+    errEl.textContent = '';
+    _criteriaParsed = null;
+    document.getElementById('criteriaApplyBtn').disabled = true;
+    document.getElementById('criteriaPreviewWrap').style.display = 'none';
+
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const entries = [];
+    let skipped = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i].trim();
+      if (!raw || raw.startsWith('#')) continue;
+
+      // 쉼표 or 탭 구분자 자동 판별
+      const sep = raw.includes('\t') ? '\t' : ',';
+      const cols = raw.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+
+      if (cols.length < 3) { skipped++; continue; }
+
+      const reading = cols[0];
+      const surface = cols[1];
+      const level   = cols[2].toUpperCase();
+
+      // 헤더 행 감지 (reading이 순수 ASCII 키워드인 경우)
+      if (i === 0 && /^(reading|yomi|히라가나|읽기)/i.test(reading)) continue;
+
+      // 레벨 값 허용: N1~N5, 外, 커스텀 문자열(최대 10자)
+      if (!reading && !surface) { skipped++; continue; }
+
+      entries.push({ reading, surface, level });
+    }
+
+    if (entries.length === 0) {
+      errEl.textContent = `파싱된 항목이 없습니다. (건너뜀: ${skipped}행) — CSV 형식을 확인해주세요.`;
+      return;
+    }
+
+    // 파싱 성공
+    _criteriaParsed = entries;
+
+    // 파일명에서 기준 이름 자동 제안 (확장자 제거)
+    const nameInput = document.getElementById('criteriaNameInput');
+    if (nameInput && !nameInput.value.trim()) {
+      nameInput.value = filename.replace(/\.[^.]+$/, '');
+    }
+
+    // 미리보기 렌더링 (최대 10행)
+    renderCriteriaPreview(entries, skipped);
+
+    document.getElementById('criteriaApplyBtn').disabled = false;
+  }
+
+  function renderCriteriaPreview(entries, skipped) {
+    const wrap = document.getElementById('criteriaPreviewWrap');
+    const body = document.getElementById('criteriaPreviewBody');
+    const more = document.getElementById('criteriaPreviewMore');
+    wrap.style.display = '';
+
+    const preview = entries.slice(0, 10);
+    body.innerHTML = preview.map(e => {
+      const lv   = e.level;
+      const color = LEVEL_COLOR[lv] || '#888';
+      return `<tr>
+        <td>${escHtml(e.reading)}</td>
+        <td>${escHtml(e.surface)}</td>
+        <td style="color:${color};font-weight:600;">${escHtml(lv)}</td>
+      </tr>`;
+    }).join('');
+
+    const extra = entries.length - preview.length;
+    if (extra > 0) {
+      more.textContent = `+ ${extra}개 항목 더 있음 (총 ${entries.length}개, 건너뜀 ${skipped}행)`;
+    } else {
+      more.textContent = `총 ${entries.length}개 항목${skipped > 0 ? ` (건너뜀 ${skipped}행)` : ''}`;
+    }
+  }
+
+  // ── 적용 / 초기화 ─────────────────────────────────────
+
+  function applyCriteriaParsed() {
+    if (!_criteriaParsed || _criteriaParsed.length === 0) return;
+    const nameInput = document.getElementById('criteriaNameInput');
+    const name = (nameInput && nameInput.value.trim()) || '사용자 정의 기준';
+
+    // localStorage 저장
+    saveCriteria({ name, entries: _criteriaParsed });
+
+    // JLPT_DICT 즉시 반영
+    applyCriteriaToDict(_criteriaParsed);
+
+    // UI 업데이트 (범례 배지, 푸터)
+    updateCriteriaUI(name);
+    touchDictUpdated();
+
+    // 현재 분석 결과 즉시 재분석
+    if (lastResult) {
+      const text = lastResult.input;
+      document.getElementById('inputText').value = text;
+      analyze();
+    }
+
+    closeCriteriaModal();
+  }
+
+  function clearCriteria() {
+    if (!confirm('분류기준을 초기화하면 기본 JLPT 사전으로 되돌아갑니다. 초기화할까요?')) return;
+
+    // localStorage 삭제
+    localStorage.removeItem(CUSTOM_CRITERIA_KEY);
+
+    // UI 리셋
+    updateCriteriaUI(null);
+
+    closeCriteriaModal();
+
+    // 기본 사전 복원을 위해 페이지 리로드 (가장 안전)
+    location.reload();
   }
 
 </script>
