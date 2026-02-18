@@ -1,0 +1,3376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TANGOYA（単語屋）</title>
+
+  <!-- Google Fonts (로컬) -->
+  <link href="fonts/fonts.css" rel="stylesheet" />
+
+  <!-- Kuromoji.js (로컬) -->
+  <script src="kuromoji.js"></script>
+
+  <style>
+    /* ══════════════════════════════════════════
+       CSS 변수
+    ══════════════════════════════════════════ */
+    :root {
+      --bg:       #0f0f13;
+      --surface:  #18181f;
+      --surface2: #222230;
+      --border:   #2e2e40;
+      --text:     #e8e8f0;
+      --muted:    #7070a0;
+
+      --N1: #ff4d6d;
+      --N2: #ff8800;
+      --N3: #ffd600;
+      --N4: #00e676;
+      --N5: #40c4ff;
+      --EX: #6060a0;
+
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+    }
+
+    /* ── 라이트 모드 ── */
+    body.light-mode {
+      --bg:       #f4f4f8;
+      --surface:  #ffffff;
+      --surface2: #eaeaf2;
+      --border:   #d0d0e0;
+      --text:     #1a1a2e;
+      --muted:    #7070a0;
+
+      --N1: #d62b4b;
+      --N2: #c86000;
+      --N3: #9a8200;
+      --N4: #00a050;
+      --N5: #0090cc;
+      --EX: #5050a0;
+    }
+
+    /* ══════════════════════════════════════════
+       리셋 & 기본
+    ══════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-weight: 400;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 80px;
+      line-height: 1.6;
+    }
+
+    /* ══════════════════════════════════════════
+       레이아웃 래퍼
+    ══════════════════════════════════════════ */
+    .container {
+      width: 100%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* ══════════════════════════════════════════
+       ① 헤더 영역
+    ══════════════════════════════════════════ */
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+      padding-top: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .badge-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--N5);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    .header-title {
+      font-family: 'Noto Serif JP', serif;
+      font-weight: 700;
+      font-size: clamp(32px, 6vw, 52px);
+      letter-spacing: 0.04em;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 300;
+      max-width: 480px;
+      line-height: 1.75;
+    }
+
+    /* ══════════════════════════════════════════
+       ② 레벨 범례
+    ══════════════════════════════════════════ */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 20px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-item .lv-label {
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+
+    /* ══════════════════════════════════════════
+       ③ 입력 카드
+    ══════════════════════════════════════════ */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+    }
+
+    .card-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-btn-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    textarea#inputText {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      font-family: 'Noto Serif JP', serif;
+      font-size: 16px;
+      line-height: 1.7;
+      padding: 14px 16px;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea#inputText::placeholder {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    textarea#inputText:focus {
+      border-color: var(--N5);
+    }
+
+    /* ── 분석하기 버튼 ── */
+    #analyzeBtn {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #4fa3e0 0%, #6c8ef5 100%);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 0 22px;
+      height: 52px;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
+      white-space: nowrap;
+      box-shadow: 0 2px 12px rgba(79, 163, 224, 0.28);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #analyzeBtn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background 0.15s;
+    }
+
+    #analyzeBtn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 163, 224, 0.42);
+    }
+
+    #analyzeBtn:hover::after {
+      background: rgba(255,255,255,0.08);
+    }
+
+    #analyzeBtn:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(79, 163, 224, 0.22);
+    }
+
+    #analyzeBtn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ── 초기화 버튼 ── */
+    #resetBtn {
+      flex-shrink: 0;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 0 16px;
+      height: 52px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.18s, border-color 0.18s, background 0.18s, transform 0.12s;
+      white-space: nowrap;
+    }
+
+    #resetBtn:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.05);
+      transform: translateY(-1px);
+    }
+
+    #resetBtn:active {
+      transform: translateY(0);
+    }
+
+    .btn-analyze {
+      /* 레거시 참조용 — 실제 스타일은 #analyzeBtn */
+    }
+
+    /* ══════════════════════════════════════════
+       ④ 에러 메시지
+    ══════════════════════════════════════════ */
+    #errorMsg {
+      background: rgba(255, 77, 109, 0.1);
+      border: 1px solid rgba(255, 77, 109, 0.35);
+      border-radius: var(--radius-md);
+      color: var(--N1);
+      font-size: 13px;
+      padding: 12px 18px;
+      display: none;
+    }
+
+    #errorMsg.visible {
+      display: block;
+    }
+
+    /* ══════════════════════════════════════════
+       ⑤ 로딩
+    ══════════════════════════════════════════ */
+    #loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 40px 0;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.06em;
+    }
+
+    #loading.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--N5);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ══════════════════════════════════════════
+       ⑥ 결과 영역
+    ══════════════════════════════════════════ */
+    #resultArea {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #resultArea.visible {
+      display: flex;
+    }
+
+    /* 결과 내용 컨테이너 */
+    #resultContent {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      min-height: 80px;
+    }
+
+    /* ── 단일 단어 결과 카드 ── */
+    .single-word-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    .single-word-card .word-jp {
+      font-family: 'Noto Serif JP', serif;
+      font-size: clamp(36px, 8vw, 64px);
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .single-word-card .word-reading {
+      font-family: 'DM Mono', monospace;
+      font-size: 18px;
+      color: var(--muted);
+    }
+
+    .single-word-card .word-kr {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .single-word-card .word-level-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── 토큰 스트림 (여러 단어) ── */
+    .token-stream {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .token-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      border: 1px solid transparent;
+      cursor: default;
+      transition: transform 0.12s;
+      min-width: 48px;
+    }
+
+    .token-card:hover {
+      transform: translateY(-2px);
+    }
+
+    /* 병합 버튼 */
+    .btn-merge {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s, color 0.15s, transform 0.12s;
+      padding: 0;
+      z-index: 2;
+    }
+
+    .token-card:hover .btn-merge {
+      opacity: 1;
+    }
+
+    .btn-merge:hover {
+      background: #4fa3e0;
+      border-color: #4fa3e0;
+      color: #fff;
+      transform: scale(1.15);
+    }
+
+    /* 병합된 카드 표시 */
+    .token-card.merged {
+      outline: 1px dashed rgba(79,163,224,0.5);
+      outline-offset: 1px;
+    }
+
+    /* 병합 취소 버튼 */
+    .btn-unmerge {
+      position: absolute;
+      top: -7px;
+      right: -7px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(79,163,224,0.25);
+      border: 1px solid #4fa3e0;
+      color: #4fa3e0;
+      font-size: 10px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s, color 0.15s, transform 0.12s;
+      padding: 0;
+      z-index: 2;
+    }
+
+    .token-card:hover .btn-unmerge {
+      opacity: 1;
+    }
+
+    .btn-unmerge:hover {
+      background: #ff6b6b;
+      border-color: #ff6b6b;
+      color: #fff;
+      transform: scale(1.15);
+    }
+
+    .token-jp {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .token-reading {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      opacity: 0.7;
+    }
+
+    .token-lv {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      opacity: 0.8;
+    }
+
+    .token-pos {
+      font-size: 9px;
+      opacity: 0.65;
+    }
+
+    .token-kr {
+      font-size: 10px;
+      font-weight: 600;
+      opacity: 1;
+      cursor: default;
+      border-radius: 3px;
+      padding: 1px 3px;
+      transition: background 0.15s;
+    }
+
+    body.admin-mode .token-kr {
+      cursor: pointer;
+      outline: 1.5px solid rgba(255,180,0,0.45);
+      border-radius: 3px;
+    }
+
+    body.admin-mode .token-kr:hover {
+      background: rgba(255,180,0,0.07);
+      outline: 1.5px solid rgba(255,180,0,0.8);
+    }
+
+    .token-kr.edited {
+      color: #7ee7b4;
+    }
+
+    .token-kr.edited::after {
+      content: '✎';
+      font-size: 8px;
+      opacity: 0.7;
+      margin-left: 2px;
+      vertical-align: super;
+    }
+
+    /* 뜻 추가 버튼 (관리자 모드에서만 표시) */
+    .btn-add-kr,
+    .btn-add-word-kr {
+      display: none;
+    }
+
+    body.admin-mode .btn-add-kr,
+    body.admin-mode .btn-add-word-kr {
+      display: inline-block;
+    }
+
+    /* 뜻 추가 버튼 스타일 */
+    .btn-add-kr {
+      font-size: 9px;
+      color: rgba(255,180,0,0.7);
+      background: none;
+      border: 1px dashed rgba(255,180,0,0.45);
+      border-radius: 3px;
+      padding: 1px 5px;
+      cursor: pointer;
+      line-height: 1.4;
+      transition: all 0.15s;
+    }
+
+    .btn-add-kr:hover {
+      color: #ffb400;
+      border-color: rgba(255,180,0,0.8);
+      background: rgba(255,180,0,0.07);
+    }
+
+    /* 인라인 편집 input */
+    .kr-edit-input {
+      font-size: 10px;
+      font-weight: 600;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: rgba(255,180,0,0.07);
+      color: var(--text);
+      border: 1.5px solid rgba(255,180,0,0.55);
+      border-radius: 3px;
+      padding: 1px 4px;
+      width: 64px;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .kr-edit-input:focus {
+      border-color: #ffb400;
+      box-shadow: 0 0 0 2px rgba(255,180,0,0.2);
+    }
+
+    /* 단어 카드 한국어 뜻 편집 */
+    .word-kr {
+      cursor: default;
+      border-radius: 4px;
+      padding: 2px 6px;
+      transition: background 0.15s;
+    }
+
+    body.admin-mode .word-kr {
+      cursor: pointer;
+      outline: 1.5px solid rgba(255,180,0,0.45);
+      border-radius: 4px;
+    }
+
+    body.admin-mode .word-kr:hover {
+      background: rgba(255,180,0,0.07);
+      outline: 1.5px solid rgba(255,180,0,0.8);
+    }
+
+    .word-kr.edited {
+      color: #7ee7b4;
+    }
+
+    .word-kr.edited::after {
+      content: ' ✎';
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    .word-kr-edit-input {
+      font-size: 18px;
+      font-family: 'Noto Sans KR', sans-serif;
+      background: rgba(255,180,0,0.07);
+      color: var(--text);
+      border: 1.5px solid rgba(255,180,0,0.55);
+      border-radius: 4px;
+      padding: 4px 10px;
+      width: 180px;
+      outline: none;
+      text-align: center;
+      box-sizing: border-box;
+      margin-top: 4px;
+    }
+
+    .word-kr-edit-input:focus {
+      border-color: #ffb400;
+      box-shadow: 0 0 0 2.5px rgba(255,180,0,0.2);
+    }
+
+    /* 단어 카드 뜻 추가 버튼 */
+    .btn-add-word-kr {
+      font-size: 13px;
+      color: rgba(255,180,0,0.7);
+      background: none;
+      border: 1px dashed rgba(255,180,0,0.45);
+      border-radius: 4px;
+      padding: 4px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 4px;
+    }
+
+    .btn-add-word-kr:hover {
+      color: #ffb400;
+      border-color: rgba(255,180,0,0.8);
+      background: rgba(255,180,0,0.07);
+    }
+
+    /* 수정내역 초기화 버튼 */
+    .btn-reset-edits {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-reset-edits:hover {
+      color: #ff6b6b;
+      border-color: #ff6b6b66;
+    }
+
+    /* ── 레벨별 토큰 색상 ── */
+    .lv-N1 {
+      background: rgba(255, 77,  109, 0.12);
+      border-color: rgba(255, 77,  109, 0.35);
+      color: var(--N1);
+    }
+    .lv-N2 {
+      background: rgba(255, 136,   0, 0.12);
+      border-color: rgba(255, 136,   0, 0.35);
+      color: var(--N2);
+    }
+    .lv-N3 {
+      background: rgba(255, 214,   0, 0.12);
+      border-color: rgba(255, 214,   0, 0.35);
+      color: var(--N3);
+    }
+    .lv-N4 {
+      background: rgba(  0, 230, 118, 0.12);
+      border-color: rgba(  0, 230, 118, 0.35);
+      color: var(--N4);
+    }
+    .lv-N5 {
+      background: rgba( 64, 196, 255, 0.12);
+      border-color: rgba( 64, 196, 255, 0.35);
+      color: var(--N5);
+    }
+    .lv-EX {
+      background: rgba( 96,  96, 160, 0.10);
+      border-color: rgba( 96,  96, 160, 0.30);
+      color: var(--EX);
+    }
+
+    /* ── 통계 바 ── */
+    .stats-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px 0 0;
+      border-top: 1px solid var(--border);
+      margin-top: 20px;
+    }
+
+    .stats-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .stats-lv-label {
+      font-family: 'DM Mono', monospace;
+      width: 28px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+
+    .stats-track {
+      flex: 1;
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .stats-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(.25,.8,.25,1);
+    }
+
+    .stats-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      width: 32px;
+      text-align: right;
+    }
+
+    /* 툴바 사전 다운로드 버튼 (관리자 모드에서만 표시) */
+    #dictDownloadBtn {
+      display: none;
+      font-size: 12px;
+      width: auto;
+      padding: 0 10px;
+      gap: 4px;
+      white-space: nowrap;
+      background: rgba(255,180,0,0.10);
+      border-color: rgba(255,180,0,0.50);
+      color: #ffb400;
+    }
+
+    body.admin-mode #dictDownloadBtn {
+      display: flex;
+    }
+
+    #dictDownloadBtn:hover {
+      background: rgba(255,180,0,0.20) !important;
+      border-color: #ffb400 !important;
+      color: #ffb400 !important;
+    }
+
+    /* ── 다운로드 섹션 ── */
+    .download-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .download-label {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-right: 4px;
+    }
+
+    .btn-download {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-download:hover {
+      background: var(--border);
+      border-color: var(--muted);
+    }
+
+    /* ══════════════════════════════════════════
+       앱 푸터
+    ══════════════════════════════════════════ */
+    .app-footer {
+      margin-top: 48px;
+      padding: 24px 0 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 28px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app-footer-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .app-footer-item strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .app-footer-sep {
+      color: var(--border);
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    /* ══════════════════════════════════════════
+       반응형 (480px 이하)
+    ══════════════════════════════════════════ */
+    @media (max-width: 480px) {
+      body {
+        padding: 32px 16px 60px;
+      }
+
+      .card {
+        padding: 20px 18px;
+      }
+
+      .input-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .input-btn-col {
+        flex-direction: row;
+      }
+
+      #analyzeBtn {
+        flex: 1;
+        height: 48px;
+        padding: 0;
+      }
+
+      #resetBtn {
+        flex: 0 0 80px;
+        height: 48px;
+        padding: 0;
+      }
+
+      .legend {
+        gap: 8px 14px;
+      }
+
+      #resultContent {
+        padding: 20px 18px;
+      }
+
+      .download-section {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .btn-download {
+        width: 100%;
+        text-align: center;
+      }
+    }
+
+    /* ══════════════════════════════════════════
+       한국어 입력 경고 모달
+    ══════════════════════════════════════════ */
+    #langModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #langModal.visible {
+      display: flex;
+    }
+
+    .lang-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.18s ease;
+    }
+
+    .lang-modal-box {
+      position: relative;
+      background: #1e1e2a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 36px 32px 28px;
+      max-width: 340px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      animation: slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .lang-modal-icon {
+      font-size: 42px;
+      margin-bottom: 14px;
+      line-height: 1;
+    }
+
+    .lang-modal-title {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .lang-modal-desc {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 24px;
+    }
+
+    .lang-modal-btn {
+      background: linear-gradient(135deg, #4fa3e0 0%, #6c8ef5 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 11px 36px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 14px rgba(79, 163, 224, 0.35);
+      transition: opacity 0.15s, transform 0.12s;
+    }
+
+    .lang-modal-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    /* ══════════════════════════════════════════
+       툴바 (우상단 고정)
+    ══════════════════════════════════════════ */
+    #toolbar {
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+    }
+
+    .tb-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .tb-btn:hover {
+      background: var(--surface);
+      color: var(--text);
+      border-color: rgba(128,128,192,0.5);
+      transform: translateY(-1px);
+    }
+
+    /* 관리자 모드 활성 시 버튼 강조 */
+    .tb-btn.admin-active {
+      background: rgba(255,180,0,0.15);
+      border-color: rgba(255,180,0,0.6);
+      color: #ffb400;
+    }
+
+    /* 관리자 모드 배지 (헤더 하단) */
+    #adminBadge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,180,0,0.12);
+      border: 1px solid rgba(255,180,0,0.4);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.1em;
+      color: #ffb400;
+      margin-top: 4px;
+    }
+
+    body.admin-mode #adminBadge {
+      display: inline-flex;
+    }
+
+    .admin-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffb400;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* ══════════════════════════════════════════
+       관리자 편집용 인라인 select / input
+    ══════════════════════════════════════════ */
+    /* ── 관리자 편집 필드 공통 (노란 테두리) ── */
+    .admin-input,
+    .admin-select {
+      background: rgba(255,180,0,0.07);
+      border: 1.5px solid rgba(255,180,0,0.55);
+      border-radius: 5px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      padding: 2px 5px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+      pointer-events: auto;
+      position: relative;
+      z-index: 3;
+      box-sizing: border-box;
+    }
+
+    .admin-input {
+      cursor: text;
+      max-width: 72px;
+    }
+
+    .admin-select {
+      cursor: pointer;
+    }
+
+    .admin-input:hover,
+    .admin-select:hover {
+      background: rgba(255,180,0,0.13);
+      border-color: rgba(255,180,0,0.8);
+    }
+
+    .admin-input:focus,
+    .admin-select:focus {
+      border-color: #ffb400;
+      box-shadow: 0 0 0 2.5px rgba(255,180,0,0.25);
+      background: rgba(255,180,0,0.12);
+    }
+
+    /* 크기 변형 */
+    .admin-input.reading-input {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 11px;
+      max-width: 88px;
+    }
+
+    .admin-input.surface-input {
+      font-family: 'Noto Serif JP', serif;
+      font-weight: 700;
+    }
+
+    .admin-input.lg {
+      font-size: 16px;
+      max-width: 160px;
+      text-align: center;
+      padding: 4px 8px;
+    }
+
+    .admin-select.lg {
+      font-size: 12px;
+      max-width: 100px;
+      padding: 4px 6px;
+    }
+
+    /* 저장 성공 피드백 */
+    .admin-input.saved {
+      border-color: #00e676 !important;
+      box-shadow: 0 0 0 2px rgba(0,230,118,0.22) !important;
+    }
+
+    /* 관리자 모드일 때 token-card 에디터블 표시 */
+    body.admin-mode .token-card {
+      outline: 1px dashed rgba(255,180,0,0.2);
+      outline-offset: 2px;
+    }
+
+    /* 패스워드 모달 재활용 (lang-modal-box 클론) */
+    #adminModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #adminModal.visible {
+      display: flex;
+    }
+
+    .admin-modal-box {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid rgba(255,180,0,0.35);
+      border-radius: 16px;
+      padding: 36px 32px 28px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      animation: slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .admin-modal-title {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 18px;
+    }
+
+    .admin-pw-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 20px;
+      font-family: 'DM Mono', monospace;
+      text-align: center;
+      letter-spacing: 0.3em;
+      padding: 10px;
+      outline: none;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+
+    .admin-pw-input:focus {
+      border-color: #ffb400;
+    }
+
+    .admin-pw-input.error {
+      border-color: #ff4d6d;
+      animation: shake 0.3s ease;
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-6px); }
+      75%      { transform: translateX(6px); }
+    }
+
+    .admin-pw-error {
+      font-size: 12px;
+      color: #ff4d6d;
+      height: 16px;
+      margin-bottom: 14px;
+    }
+
+    .admin-modal-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .admin-modal-btns button {
+      border-radius: 8px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 24px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.12s;
+      border: none;
+    }
+
+    .admin-modal-btns button:hover {
+      opacity: 0.85;
+      transform: translateY(-1px);
+    }
+
+    .btn-admin-confirm {
+      background: #ffb400;
+      color: #1a1200;
+    }
+
+    .btn-admin-cancel {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border) !important;
+    }
+
+    /* ══════════════════════════════════════════
+       단어 추가 모달
+    ══════════════════════════════════════════ */
+    #wordAddModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #wordAddModal.visible {
+      display: flex;
+    }
+
+    .word-add-box {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid rgba(255,180,0,0.35);
+      border-radius: 16px;
+      padding: 32px 28px 24px;
+      max-width: 460px;
+      width: 94%;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      animation: slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .word-add-title {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .word-add-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .word-add-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .word-add-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .word-add-label {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .word-add-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: 'Noto Serif JP', serif;
+      font-size: 14px;
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .word-add-input:focus {
+      border-color: #ffb400;
+      box-shadow: 0 0 0 2px rgba(255,180,0,0.18);
+    }
+
+    .word-add-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .word-add-select:focus {
+      border-color: #ffb400;
+    }
+
+    .word-add-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .word-add-btns button {
+      border-radius: 8px;
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 20px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.12s;
+      border: none;
+    }
+
+    .word-add-btns button:hover {
+      opacity: 0.85;
+      transform: translateY(-1px);
+    }
+
+    .btn-word-add-confirm {
+      background: #ffb400;
+      color: #1a1200;
+    }
+
+    .btn-word-add-cancel {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border) !important;
+    }
+
+    .word-add-error {
+      font-size: 12px;
+      color: #ff4d6d;
+      min-height: 16px;
+      margin-bottom: 10px;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    /* 등록된 단어 목록 */
+    .custom-words-section {
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .custom-words-header {
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .custom-words-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .custom-word-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+    .custom-word-surface {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      min-width: 60px;
+    }
+
+    .custom-word-reading {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      flex: 1;
+    }
+
+    .custom-word-lv {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .custom-word-kr {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .btn-custom-word-del {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 2px;
+      line-height: 1;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-custom-word-del:hover {
+      color: #ff4d6d;
+    }
+
+    .custom-words-empty {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'Noto Sans KR', sans-serif;
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    /* 툴바 단어 추가 버튼 (관리자 모드에서만 표시) */
+    #wordAddBtn {
+      display: none;
+    }
+
+    body.admin-mode #wordAddBtn {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 툴바: 라이트/다크 + 단어추가 + 관리자 -->
+  <div id="toolbar">
+    <button class="tb-btn" id="themeBtn" onclick="toggleTheme()" title="라이트/다크 모드 전환">🌙</button>
+    <button class="tb-btn" id="wordAddBtn" onclick="openWordAddModal()" title="단어 추가">＋</button>
+    <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
+    <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">⬇ 사전</button>
+  </div>
+
+  <!-- 관리자 패스워드 모달 -->
+  <div id="adminModal" role="dialog" aria-modal="true">
+    <div class="lang-modal-backdrop" onclick="closeAdminModal()"></div>
+    <div class="admin-modal-box">
+      <div class="lang-modal-icon" id="adminModalIcon">🔐</div>
+      <div class="admin-modal-title" id="adminModalTitle">관리자 모드</div>
+      <input type="password" id="adminPwInput" class="admin-pw-input"
+             placeholder="····" maxlength="10"
+             onkeydown="if(event.key==='Enter')confirmAdmin();if(event.key==='Escape')closeAdminModal();">
+      <div class="admin-pw-error" id="adminPwError"></div>
+      <div class="admin-modal-btns">
+        <button class="btn-admin-cancel" onclick="closeAdminModal()">취소</button>
+        <button class="btn-admin-confirm" onclick="confirmAdmin()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 단어 추가 모달 -->
+  <div id="wordAddModal" role="dialog" aria-modal="true" aria-labelledby="wordAddTitle">
+    <div class="lang-modal-backdrop" onclick="closeWordAddModal()"></div>
+    <div class="word-add-box">
+      <div class="word-add-title">
+        <span>📝</span>
+        <span id="wordAddTitle">단어 추가</span>
+      </div>
+
+      <!-- 입력 폼 -->
+      <div class="word-add-grid">
+        <div class="word-add-field">
+          <label class="word-add-label" for="wa-surface">표층형 (한자/가나)</label>
+          <input id="wa-surface" class="word-add-input" type="text"
+                 placeholder="例: お田" autocomplete="off"
+                 onkeydown="if(event.key==='Enter')saveCustomWord();else if(event.key==='Escape')closeWordAddModal();">
+        </div>
+        <div class="word-add-field">
+          <label class="word-add-label" for="wa-reading">읽기 (히라가나)</label>
+          <input id="wa-reading" class="word-add-input" type="text"
+                 placeholder="例: おでん" autocomplete="off"
+                 onkeydown="if(event.key==='Enter')saveCustomWord();else if(event.key==='Escape')closeWordAddModal();">
+        </div>
+        <div class="word-add-field">
+          <label class="word-add-label" for="wa-level">JLPT 레벨</label>
+          <select id="wa-level" class="word-add-select">
+            <option value="N5">N5 초급</option>
+            <option value="N4">N4 초중급</option>
+            <option value="N3" selected>N3 중급</option>
+            <option value="N2">N2 중상급</option>
+            <option value="N1">N1 상급</option>
+            <option value="外">外 미등재</option>
+          </select>
+        </div>
+        <div class="word-add-field">
+          <label class="word-add-label" for="wa-pos">품사</label>
+          <select id="wa-pos" class="word-add-select">
+            <option value="名詞" selected>名詞</option>
+            <option value="動詞">動詞</option>
+            <option value="形容詞">形容詞</option>
+            <option value="副詞">副詞</option>
+            <option value="助詞">助詞</option>
+            <option value="助動詞">助動詞</option>
+            <option value="接続詞">接続詞</option>
+            <option value="感動詞">感動詞</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="word-add-field full">
+          <label class="word-add-label" for="wa-korean">한국어 뜻</label>
+          <input id="wa-korean" class="word-add-input" type="text"
+                 placeholder="例: 어묵, 오뎅" autocomplete="off"
+                 onkeydown="if(event.key==='Enter')saveCustomWord();else if(event.key==='Escape')closeWordAddModal();">
+        </div>
+      </div>
+
+      <div class="word-add-error" id="wordAddError"></div>
+
+      <div class="word-add-btns">
+        <button class="btn-word-add-cancel" onclick="closeWordAddModal()">닫기</button>
+        <button class="btn-word-add-confirm" onclick="saveCustomWord()">추가</button>
+      </div>
+
+      <!-- 등록된 단어 목록 -->
+      <div class="custom-words-section">
+        <div class="custom-words-header">등록된 단어 (<span id="customWordsCount">0</span>개)</div>
+        <div class="custom-words-list" id="customWordsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ① 헤더 영역 -->
+  <header class="header">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      TANGOYA（単語屋）
+    </div>
+    <h1 class="header-title">TANGOYA（単語屋）</h1>
+    <p class="header-subtitle">
+      일본어 텍스트를 입력하면 형태소 분석 후 JLPT 레벨을 판정합니다
+    </p>
+    <div id="adminBadge">
+      <span class="admin-dot"></span>
+      ADMIN MODE
+    </div>
+  </header>
+
+  <!-- ② 레벨 범례 -->
+  <nav class="legend" aria-label="JLPT 레벨 범례">
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--N1)"></span>
+      <span class="lv-label">N1</span>
+      <span>상급</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--N2)"></span>
+      <span class="lv-label">N2</span>
+      <span>중상급</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--N3)"></span>
+      <span class="lv-label">N3</span>
+      <span>중급</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--N4)"></span>
+      <span class="lv-label">N4</span>
+      <span>초중급</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--N5)"></span>
+      <span class="lv-label">N5</span>
+      <span>초급</span>
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:var(--EX)"></span>
+      <span class="lv-label">外</span>
+      <span>미등재</span>
+    </div>
+  </nav>
+
+  <!-- ③ 입력 카드 -->
+  <section class="card" aria-label="입력 영역">
+    <label class="card-label" for="inputText">일본어 입력</label>
+    <div class="input-row">
+      <textarea
+        id="inputText"
+        maxlength="1000"
+        placeholder="예) 会う　　또는　　私は学生です"
+        spellcheck="false"
+        autocomplete="off"
+      ></textarea>
+      <div class="input-btn-col">
+        <button id="analyzeBtn" onclick="analyze()">분석하기</button>
+        <button id="resetBtn"   onclick="resetAll()">↺ 초기화</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ 에러 메시지 -->
+  <div id="errorMsg" role="alert" aria-live="polite"></div>
+
+  <!-- ⑤ 로딩 -->
+  <div id="loading" aria-live="polite" aria-label="분석 중">
+    <div class="spinner"></div>
+    <span>형태소 분석 중...</span>
+  </div>
+
+  <!-- ⑥ 결과 영역 -->
+  <section id="resultArea" aria-label="분석 결과">
+    <div id="resultContent"></div>
+
+    <!-- 다운로드 섹션 -->
+    <div class="download-section">
+      <span class="download-label">EXPORT</span>
+      <button class="btn-download" onclick="downloadJSON()">⬇ JSON</button>
+      <button class="btn-download" onclick="downloadCSV()">⬇ CSV</button>
+      <button class="btn-download" onclick="downloadTXT()">⬇ TXT</button>
+      <button class="btn-reset-edits" onclick="resetKrEdits()" title="저장된 한국어 뜻 수정 내역을 모두 초기화">↺ 수정 초기화</button>
+    </div>
+  </section>
+
+  <!-- 앱 푸터 -->
+  <footer class="app-footer" aria-label="앱 정보">
+    <span class="app-footer-item">개발자 <strong>Jaehyoring</strong></span>
+    <span class="app-footer-sep">·</span>
+    <span class="app-footer-item">버전 <strong>v1.0</strong></span>
+    <span class="app-footer-sep">·</span>
+    <span class="app-footer-item">일본어 단어 판별 기준 <strong>네이버 일본어 사전</strong></span>
+    <span class="app-footer-sep">·</span>
+    <span class="app-footer-item">사전 갱신일 <strong id="footerDictUpdated">-</strong></span>
+  </footer>
+
+</div><!-- /.container -->
+
+<!-- 한국어 입력 경고 모달 -->
+<div id="langModal" role="dialog" aria-modal="true" aria-labelledby="langModalTitle">
+  <div class="lang-modal-backdrop" onclick="closeLangModal()"></div>
+  <div class="lang-modal-box">
+    <div class="lang-modal-icon">🇯🇵</div>
+    <div class="lang-modal-title" id="langModalTitle">일본어를 입력해 주세요</div>
+    <div class="lang-modal-desc">
+      이 앱은 <strong style="color:var(--text)">일본어 텍스트</strong>만 분석할 수 있습니다.<br>
+      입력창이 초기화되었습니다.
+    </div>
+    <button class="lang-modal-btn" onclick="closeLangModal()">확인</button>
+  </div>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════
+  // 작업 1: JLPT_DICT 내장 데이터
+  // ══════════════════════════════════════════════════════
+  // __JLPT_DICT_PLACEHOLDER__
+
+  // ══════════════════════════════════════════════════════
+  // 작업 2: Kuromoji 초기화
+  // ══════════════════════════════════════════════════════
+  let tokenizer   = null;
+  let initFailed  = false;
+
+  function initKuromoji() {
+    return new Promise((resolve, reject) => {
+      kuromoji
+        .builder({ dicPath: 'dict' })
+        .build((err, _tokenizer) => {
+          if (err) {
+            // err가 Event 객체(XHR onerror)이거나 문자열일 수 있음
+            const msg = (err && err.message) ? err.message
+                      : (typeof err === 'string') ? err
+                      : '사전 파일 로드 실패';
+            reject(new Error(msg));
+            return;
+          }
+          resolve(_tokenizer);
+        });
+    });
+  }
+
+  (async () => {
+    try {
+      // file:// 프로토콜 경고
+      if (location.protocol === 'file:') {
+        showError(
+          'file:// 프로토콜로 실행 중입니다. 사전 파일 로드가 차단됩니다.<br>' +
+          '<strong>python3 dist/start_server.py</strong> 로 실행해주세요.'
+        );
+        initFailed = true;
+        const btn = document.getElementById('analyzeBtn');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+        return;
+      }
+      tokenizer = await initKuromoji();
+      console.log('tangoya 준비 완료:', Object.keys(JLPT_DICT).length, '개 단어');
+    } catch (err) {
+      initFailed = true;
+      const btn = document.getElementById('analyzeBtn');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+      const detail = err.message || String(err);
+      showError('형태소 분석기 초기화에 실패했습니다: ' + detail);
+      console.error('Kuromoji 초기화 실패:', err);
+    }
+  })();
+
+  // ══════════════════════════════════════════════════════
+  // 작업 3: 보조 함수
+  // ══════════════════════════════════════════════════════
+
+  /** 히라가나 → 카타카나 변환 */
+  function toKatakana(str) {
+    return str.replace(/[\u3041-\u3096]/g, ch =>
+      String.fromCharCode(ch.charCodeAt(0) + 0x60)
+    );
+  }
+
+  /** JLPT_DICT 검색: {r, l, k} 또는 null 반환 */
+  // 레벨 우선순위: N5가 가장 낮은 급수(초급) = 최우선
+  const LEVEL_RANK = { N5: 1, N4: 2, N3: 3, N2: 4, N1: 5, '外': 6, '文法': 7 };
+
+  function lookupWord(surface, baseForm, reading) {
+    const candidates = [baseForm, surface, reading].filter(Boolean);
+    let best = null;
+
+    function keepLowest(entry) {
+      if (!entry) return;
+      if (!best) { best = entry; return; }
+      const r1 = LEVEL_RANK[entry.l] ?? 9;
+      const r2 = LEVEL_RANK[best.l]  ?? 9;
+      if (r1 < r2) best = entry;
+    }
+
+    for (const key of candidates) {
+      // 1~3. 직접 조회
+      keepLowest(JLPT_DICT[key]);
+
+      // 4. '·' '・' 포함 시 분리 후 각 부분 조회
+      if (key && (key.includes('·') || key.includes('・'))) {
+        for (const part of key.split(/[·・]/)) {
+          const p = part.trim();
+          if (p) keepLowest(JLPT_DICT[p]);
+        }
+      }
+
+      // 5. 카타카나 변환 후 재조회
+      if (key) {
+        const kata = toKatakana(key);
+        if (kata !== key) keepLowest(JLPT_DICT[kata]);
+      }
+    }
+    return best;
+  }
+
+  /** 에러 메시지 표시 */
+  // ══════════════════════════════════════════════════════
+  // 언어 감지 & 모달
+  // ══════════════════════════════════════════════════════
+
+  /** 히라가나·가타카나·한자가 1자라도 포함되어 있으면 true */
+  function containsJapanese(str) {
+    return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/.test(str);
+  }
+
+  /**
+   * 비ASCII이면서 일본어·전각 범위 밖의 문자(한글·아랍·러시아어 등)가
+   * 1자라도 포함되면 true.
+   */
+  function hasForeignNonJapanese(str) {
+    // 허용 범위: ASCII 전체, 일본어 구두점·전각, 히라가나, 가타카나, CJK 한자, 전각 ASCII
+    const allowed = /[\x00-\x7F\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\uFF00-\uFFEF]/;
+    for (const ch of str) {
+      if (!allowed.test(ch)) return true;
+    }
+    return false;
+  }
+
+  function showLangModal() {
+    document.getElementById('langModal').classList.add('visible');
+    // 모달 버튼에 포커스
+    setTimeout(() => {
+      const btn = document.querySelector('.lang-modal-btn');
+      if (btn) btn.focus();
+    }, 50);
+  }
+
+  function closeLangModal() {
+    document.getElementById('langModal').classList.remove('visible');
+    // 초기화 후 textarea에 포커스
+    const ta = document.getElementById('inputText');
+    if (ta) { ta.value = ''; ta.focus(); }
+  }
+
+  // ESC 키로 모달 닫기
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('langModal');
+      if (modal && modal.classList.contains('visible')) {
+        closeLangModal();
+      }
+    }
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  /** 에러 메시지 숨기기 */
+  function hideError() {
+    const el = document.getElementById('errorMsg');
+    if (!el) return;
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+
+  /** 로딩 표시 제어 */
+  function showLoading(bool) {
+    const el = document.getElementById('loading');
+    if (!el) return;
+    if (bool) { el.classList.add('visible'); }
+    else       { el.classList.remove('visible'); }
+  }
+
+
+  // ══════════════════════════════════════════════════════
+  // 유틸리티
+  // ══════════════════════════════════════════════════════
+
+  function escHtml(str) {
+    return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /** 카타카나(U+30A1~U+30F6) → 히라가나 변환 */
+  function toHiragana(str) {
+    return (str||'').replace(/[\u30A1-\u30F6]/g, ch =>
+      String.fromCharCode(ch.charCodeAt(0) - 0x60)
+    );
+  }
+
+  // lastResult: 다운로드용 분석 결과 보관
+  let lastResult = null;
+
+  // ══════════════════════════════════════════════════════
+  // 한국어 뜻 수동 편집 — localStorage 모듈
+  // ══════════════════════════════════════════════════════
+  const KR_EDITS_KEY      = 'tangoya_kr_edits';
+  const MERGE_RULES_KEY   = 'tangoya_merge_rules';
+  const CUSTOM_WORDS_KEY  = 'tangoya_custom_words';
+  const DICT_UPDATED_KEY  = 'tangoya_dict_updated'; // 사전 갱신일 { updated: 'YYYY-MM-DD' }
+
+  /** 오늘 날짜(YYYY-MM-DD)를 사전 갱신일로 기록 */
+  function touchDictUpdated() {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem(DICT_UPDATED_KEY, today);
+    // 푸터 갱신일 표시 업데이트
+    const el = document.getElementById('footerDictUpdated');
+    if (el) el.textContent = today;
+  }
+
+  /** 저장된 사전 갱신일 반환. 아직 저장된 값이 없으면 오늘 날짜로 초기화 */
+  function getDictUpdated() {
+    let stored = localStorage.getItem(DICT_UPDATED_KEY);
+    if (!stored) {
+      stored = new Date().toISOString().slice(0, 10);
+      localStorage.setItem(DICT_UPDATED_KEY, stored);
+    }
+    return stored;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 토큰 병합 규칙 — localStorage 모듈
+  // ══════════════════════════════════════════════════════
+  // 저장 형식: { "inputText": [[0,1],[3,4], ...], ... }
+  // 각 배열은 "병합 시작 인덱스들" (원본 rawTokens 기준)
+
+  function loadMergeRules() {
+    try { return JSON.parse(localStorage.getItem(MERGE_RULES_KEY) || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  function saveMergeRules(rules) {
+    localStorage.setItem(MERGE_RULES_KEY, JSON.stringify(rules));
+  }
+
+  /** 특정 입력 텍스트에 대한 병합 그룹 목록 반환 (없으면 []) */
+  function getMergeGroups(inputText) {
+    return loadMergeRules()[inputText] || [];
+  }
+
+  /**
+   * 두 인덱스(i, i+1)를 병합 그룹에 추가.
+   * 이미 그룹에 속한 인덱스면 그 그룹을 확장.
+   */
+  function addMerge(inputText, idxA, idxB) {
+    const rules = loadMergeRules();
+    if (!rules[inputText]) rules[inputText] = [];
+    const groups = rules[inputText];
+
+    // idxA 또는 idxB가 기존 그룹에 속하면 합침
+    let targetGroup = null;
+    for (const g of groups) {
+      if (g.includes(idxA) || g.includes(idxB)) {
+        targetGroup = g;
+        break;
+      }
+    }
+    if (targetGroup) {
+      if (!targetGroup.includes(idxA)) targetGroup.push(idxA);
+      if (!targetGroup.includes(idxB)) targetGroup.push(idxB);
+      targetGroup.sort((a,b) => a-b);
+    } else {
+      groups.push([idxA, idxB].sort((a,b) => a-b));
+    }
+    rules[inputText] = groups;
+    saveMergeRules(rules);
+  }
+
+  /**
+   * 인덱스 idx가 속한 병합 그룹을 삭제 (병합 취소).
+   */
+  function removeMerge(inputText, idx) {
+    const rules = loadMergeRules();
+    if (!rules[inputText]) return;
+    rules[inputText] = rules[inputText].filter(g => !g.includes(idx));
+    if (rules[inputText].length === 0) delete rules[inputText];
+    saveMergeRules(rules);
+  }
+
+  /**
+   * 병합 그룹을 원본 tokens 배열에 적용하여
+   * 병합된 새 tokens 배열 반환.
+   * 각 병합 토큰: surface/reading 합산, level/korean/pos는 첫 토큰 기준,
+   * _mergedIndices: 원본 인덱스 배열, _isMerged: true
+   */
+  function applyMergeGroups(rawTokens, groups) {
+    // _origIdx가 이미 설정된 경우 보존 (커스텀 자동 병합 후 호출 시)
+    const hasOrigIdx = rawTokens.length > 0 && rawTokens[0]._origIdx !== undefined;
+
+    if (!groups || groups.length === 0) {
+      if (hasOrigIdx) return rawTokens.map(tk => Object.assign({}, tk));
+      return rawTokens.map((tk, i) => Object.assign({}, tk, { _origIdx: i }));
+    }
+
+    // 수동 병합 그룹은 rawTokens의 _origIdx 기준으로 매핑
+    // _origIdx가 없으면 배열 순서(i)를 사용
+    const getIdx = (tk, i) => hasOrigIdx ? tk._origIdx : i;
+
+    // origIdx → 배열 위치 역인덱스
+    const origIdxMap = {};
+    rawTokens.forEach((tk, ii) => { origIdxMap[getIdx(tk, ii)] = ii; });
+
+    // 어떤 origIdx가 어느 그룹에 속하는지 맵 구성
+    const idxToGroup = {};
+    groups.forEach((g, gi) => g.forEach(idx => { idxToGroup[idx] = gi; }));
+
+    const result = [];
+    const consumed = new Set();
+
+    for (let i = 0; i < rawTokens.length; i++) {
+      const origIdx = getIdx(rawTokens[i], i);
+      if (consumed.has(origIdx)) continue;
+      const gi = idxToGroup[origIdx];
+      if (gi !== undefined) {
+        // 이 그룹의 첫 번째 인덱스인지 확인
+        const group = groups[gi];
+        if (group[0] !== origIdx) continue; // 첫 번째만 처리
+
+        // 그룹 내 origIdx에 해당하는 rawTokens 항목 수집
+        const memberTks = group
+          .map(gIdx => rawTokens[origIdxMap[gIdx]])
+          .filter(Boolean);
+        memberTks.forEach(tk => consumed.add(getIdx(tk, 0)));
+
+        const first = memberTks[0];
+        const mergedSurface = memberTks.map(tk => tk.surface).join('');
+        const mergedReading = memberTks.map(tk => tk.reading).join('');
+
+        // 사전 재검색 (병합된 표층형)
+        const mergedInfo = lookupWord(mergedSurface, mergedSurface, mergedReading);
+        const GRAMMAR_POS = ['助詞','助動詞','記号','接続詞'];
+        let mergedLevel, mergedKorean;
+        if (GRAMMAR_POS.includes(first.pos)) {
+          mergedLevel = '文法'; mergedKorean = '-';
+        } else if (mergedInfo) {
+          mergedLevel = mergedInfo.l; mergedKorean = mergedInfo.k;
+        } else {
+          // 첫 번째 토큰의 레벨 사용
+          mergedLevel = first.level; mergedKorean = first.korean;
+        }
+
+        result.push(Object.assign({}, first, {
+          surface:       mergedSurface,
+          reading:       mergedReading,
+          level:         mergedLevel,
+          korean:        mergedKorean,
+          _origIdx:      group[0],
+          _mergedIndices: group,
+          _isMerged:     true
+        }));
+      } else {
+        consumed.add(origIdx);
+        result.push(Object.assign({}, rawTokens[i], { _origIdx: hasOrigIdx ? origIdx : i }));
+      }
+    }
+    return result;
+  }
+
+  /** 병합 규칙 전체 초기화 */
+  function resetMergeRules() {
+    if (!confirm('저장된 병합 규칙을 모두 초기화할까요?')) return;
+    localStorage.removeItem(MERGE_RULES_KEY);
+    location.reload();
+  }
+
+  /**
+   * KR_EDITS 저장 형식: { baseForm: { k: "한국어뜻", d: "YYYY-MM-DD" } }
+   * 구버전 호환: 값이 문자열이면 { k: 값, d: '-' } 로 자동 변환
+   */
+  function loadKrEdits() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(KR_EDITS_KEY) || '{}');
+      // 구버전(string 값) 자동 마이그레이션
+      const result = {};
+      for (const [k, v] of Object.entries(raw)) {
+        result[k] = (typeof v === 'string') ? { k: v, d: '-' } : v;
+      }
+      return result;
+    } catch(e) { return {}; }
+  }
+
+  /** { baseForm: { k, d } } 형태 그대로 저장 */
+  function saveKrEdits(edits) {
+    localStorage.setItem(KR_EDITS_KEY, JSON.stringify(edits));
+  }
+
+  /** 한국어 뜻 문자열만 추출하는 헬퍼 */
+  function getKrEditValue(entry) {
+    if (!entry) return undefined;
+    return (typeof entry === 'string') ? entry : entry.k;
+  }
+
+  function updateKrEdit(baseForm, newKorean) {
+    const edits = loadKrEdits();
+    const today = new Date().toISOString().slice(0, 10);
+    if (newKorean && newKorean !== '-') {
+      edits[baseForm] = { k: newKorean, d: today };
+    } else {
+      delete edits[baseForm];
+    }
+    saveKrEdits(edits);
+    touchDictUpdated();  // 사전 갱신일 기록
+    // JLPT_DICT에도 즉시 반영 (카타카나·히라가나 키도 동시 업데이트)
+    for (const key of Object.keys(JLPT_DICT)) {
+      if (JLPT_DICT[key].r === baseForm || key === baseForm) {
+        JLPT_DICT[key].k = newKorean || '-';
+      }
+    }
+  }
+
+  function resetKrEdits() {
+    if (!confirm('저장된 한국어 뜻 수정 내역을 모두 초기화할까요?')) return;
+    localStorage.removeItem(KR_EDITS_KEY);
+    // 페이지 새로고침으로 원본 사전 복원
+    location.reload();
+  }
+
+  // 페이지 로드 시 저장된 편집 내역을 JLPT_DICT에 덮어씌움
+  function applyStoredEdits() {
+    const edits = loadKrEdits();
+    for (const [baseForm, entry] of Object.entries(edits)) {
+      const korean = getKrEditValue(entry);
+      for (const key of Object.keys(JLPT_DICT)) {
+        if (JLPT_DICT[key].r === baseForm || key === baseForm) {
+          JLPT_DICT[key].k = korean;
+        }
+      }
+    }
+  }
+
+  function isEdited(baseForm) {
+    const edits = loadKrEdits();
+    return Object.prototype.hasOwnProperty.call(edits, baseForm);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 커스텀 단어 — localStorage 모듈
+  // ══════════════════════════════════════════════════════
+  // 저장 형식: [ {surface, reading, level, pos, korean}, ... ]
+
+  function loadCustomWords() {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_WORDS_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+
+  function saveCustomWords(words) {
+    localStorage.setItem(CUSTOM_WORDS_KEY, JSON.stringify(words));
+  }
+
+  /** 저장된 커스텀 단어를 JLPT_DICT에 즉시 반영 */
+  function applyCustomWords() {
+    const words = loadCustomWords();
+    words.forEach(w => {
+      const entry = { r: w.reading, l: w.level, k: w.korean || '-' };
+      // surface 키 등록
+      JLPT_DICT[w.surface] = entry;
+      // reading 키도 등록 (히라가나)
+      if (w.reading && w.reading !== w.surface) {
+        JLPT_DICT[w.reading] = entry;
+      }
+    });
+  }
+
+  /** 커스텀 단어 추가 (중복 surface는 덮어씀, 날짜 자동 기록) */
+  function addCustomWord(word) {
+    const today = new Date().toISOString().slice(0, 10);
+    const words = loadCustomWords();
+    const idx = words.findIndex(w => w.surface === word.surface);
+    const wordWithDate = Object.assign({}, word, { d: word.d || today });
+    if (idx >= 0) {
+      words[idx] = wordWithDate;
+    } else {
+      words.push(wordWithDate);
+    }
+    saveCustomWords(words);
+    touchDictUpdated();  // 사전 갱신일 기록
+    // JLPT_DICT 즉시 반영
+    const entry = { r: word.reading, l: word.level, k: word.korean || '-' };
+    JLPT_DICT[word.surface] = entry;
+    if (word.reading && word.reading !== word.surface) {
+      JLPT_DICT[word.reading] = entry;
+    }
+  }
+
+  /** 커스텀 단어 삭제 */
+  function deleteCustomWord(surface) {
+    const words = loadCustomWords().filter(w => w.surface !== surface);
+    saveCustomWords(words);
+    touchDictUpdated();  // 삭제도 사전 갱신으로 기록
+    // JLPT_DICT에서도 제거
+    delete JLPT_DICT[surface];
+    // reading 키는 다른 단어와 공유할 수 있으므로 남겨둠
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 단어 추가 모달 핸들러
+  // ══════════════════════════════════════════════════════
+
+  function openWordAddModal() {
+    // 입력 초기화
+    document.getElementById('wa-surface').value  = '';
+    document.getElementById('wa-reading').value  = '';
+    document.getElementById('wa-level').value    = 'N3';
+    document.getElementById('wa-pos').value      = '名詞';
+    document.getElementById('wa-korean').value   = '';
+    document.getElementById('wordAddError').textContent = '';
+
+    renderCustomWordsList();
+
+    const modal = document.getElementById('wordAddModal');
+    modal.classList.add('visible');
+    setTimeout(() => document.getElementById('wa-surface').focus(), 80);
+  }
+
+  function closeWordAddModal() {
+    document.getElementById('wordAddModal').classList.remove('visible');
+  }
+
+  function saveCustomWord() {
+    const surface = document.getElementById('wa-surface').value.trim();
+    const reading = document.getElementById('wa-reading').value.trim();
+    const level   = document.getElementById('wa-level').value;
+    const pos     = document.getElementById('wa-pos').value;
+    const korean  = document.getElementById('wa-korean').value.trim();
+    const errEl   = document.getElementById('wordAddError');
+
+    // 유효성 검사
+    if (!surface) {
+      errEl.textContent = '표층형을 입력해주세요.';
+      document.getElementById('wa-surface').focus();
+      return;
+    }
+    if (!reading) {
+      errEl.textContent = '읽기(히라가나)를 입력해주세요.';
+      document.getElementById('wa-reading').focus();
+      return;
+    }
+    errEl.textContent = '';
+
+    addCustomWord({ surface, reading, level, pos, korean });
+
+    // 현재 분석 결과가 있으면 즉시 재분석하여 새 단어 반영
+    if (lastResult) {
+      const text = lastResult.input;
+      document.getElementById('inputText').value = text;
+      analyze();
+    }
+
+    // 성공 메시지 (1.8초 후 자동 소멸)
+    errEl.style.color = '#00e676';
+    errEl.textContent = `✓  "${surface}" 추가됨`;
+    setTimeout(() => { errEl.style.color = ''; errEl.textContent = ''; }, 1800);
+
+    // 입력 초기화 후 다음 단어 입력 대기
+    document.getElementById('wa-surface').value = '';
+    document.getElementById('wa-reading').value = '';
+    document.getElementById('wa-korean').value  = '';
+    document.getElementById('wa-surface').focus();
+
+    renderCustomWordsList();
+  }
+
+  function deleteCustomWordAndRefresh(surface) {
+    deleteCustomWord(surface);
+    renderCustomWordsList();
+    // 현재 분석 결과가 있으면 즉시 재분석하여 삭제 반영
+    if (lastResult) {
+      const text = lastResult.input;
+      document.getElementById('inputText').value = text;
+      analyze();
+    }
+  }
+
+  function renderCustomWordsList() {
+    const words  = loadCustomWords();
+    const listEl = document.getElementById('customWordsList');
+    const countEl = document.getElementById('customWordsCount');
+    if (!listEl) return;
+
+    countEl.textContent = words.length;
+
+    if (words.length === 0) {
+      listEl.innerHTML = '<div class="custom-words-empty">등록된 단어가 없습니다</div>';
+      return;
+    }
+
+    listEl.innerHTML = words.map(w => {
+      const color = LEVEL_COLOR[w.level] || LEVEL_COLOR['外'];
+      return `
+        <div class="custom-word-row">
+          <span class="custom-word-surface">${escHtml(w.surface)}</span>
+          <span class="custom-word-reading">${escHtml(w.reading)}</span>
+          <span class="custom-word-lv" style="background:${color}22;color:${color};border:1px solid ${color}55;">${escHtml(w.level)}</span>
+          <span class="custom-word-kr">${escHtml(w.korean || '-')}</span>
+          <button class="btn-custom-word-del" title="삭제"
+                  data-surface="${escHtml(w.surface)}">✕</button>
+        </div>`;
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 인라인 편집 함수
+  // ══════════════════════════════════════════════════════
+
+  // 토큰 카드용 (mode='token') 또는 단어 카드용 (mode='word')
+  function startKrEdit(el) {
+    const mode = el.dataset.mode || 'token';
+    const original = el.dataset.original;
+    const baseForm = el.dataset.baseForm;
+    const inputClass = mode === 'word' ? 'word-kr-edit-input' : 'kr-edit-input';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = inputClass;
+    input.value = (original === '-') ? '' : original;
+    input.dataset.baseForm = baseForm;
+    input.dataset.original = original;
+    input.dataset.mode = mode;
+
+    el.replaceWith(input);
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commitKrEdit(input); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelKrEdit(input); }
+    });
+    let blurTimer = null;
+    input.addEventListener('blur', () => {
+      blurTimer = setTimeout(() => commitKrEdit(input), 120);
+    });
+    input._clearBlurTimer = () => clearTimeout(blurTimer);
+  }
+
+  function startKrEditFromBtn(btn) {
+    const baseForm = btn.dataset.baseForm;
+    const mode = btn.dataset.mode || 'token';
+    const inputClass = mode === 'word' ? 'word-kr-edit-input' : 'kr-edit-input';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = inputClass;
+    input.value = '';
+    input.dataset.baseForm = baseForm;
+    input.dataset.original = '-';
+    input.dataset.mode = mode;
+    input.dataset.fromBtn = 'true';
+
+    btn.replaceWith(input);
+    input.focus();
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commitKrEdit(input); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelKrEdit(input); }
+    });
+    let blurTimer = null;
+    input.addEventListener('blur', () => {
+      blurTimer = setTimeout(() => commitKrEdit(input), 120);
+    });
+    input._clearBlurTimer = () => clearTimeout(blurTimer);
+  }
+
+  function commitKrEdit(input) {
+    if (input._committed) return;  // 중복 호출 방지
+    input._committed = true;
+    if (input._clearBlurTimer) input._clearBlurTimer();
+    const newKorean = input.value.trim();
+    const baseForm  = input.dataset.baseForm;
+    const original  = input.dataset.original;
+    const mode      = input.dataset.mode || 'token';
+    const fromBtn   = input.dataset.fromBtn === 'true';
+
+    if (newKorean !== original) {
+      // 빈 문자열 저장 시 updateKrEdit 내부에서 delete 처리됨
+      updateKrEdit(baseForm, newKorean);
+      // lastResult 의 해당 토큰도 즉시 갱신
+      if (lastResult) {
+        lastResult.tokens.forEach(t => {
+          if (t.baseForm === baseForm) t.korean = newKorean || '-';
+        });
+      }
+    }
+
+    // 화면에 표시할 최종 텍스트: 새 값이 있으면 새 값, 없으면 빈 문자열 (버튼 표시로 분기)
+    const finalText = newKorean || '';
+    const edited    = isEdited(baseForm) || (newKorean && newKorean !== original);
+
+    if (finalText && finalText !== '-') {
+      // 뜻 span 복원
+      const span = document.createElement(mode === 'word' ? 'div' : 'span');
+      span.className = (mode === 'word' ? 'word-kr' : 'token-kr') + (edited ? ' edited' : '');
+      span.textContent = finalText;
+      span.dataset.baseForm = baseForm;
+      span.dataset.original = finalText;
+      span.dataset.mode = mode;
+      input.replaceWith(span);
+    } else {
+      // 뜻 없음 → 버튼 복원
+      const btn = document.createElement('button');
+      btn.className = mode === 'word' ? 'btn-add-word-kr' : 'btn-add-kr';
+      btn.textContent = mode === 'word' ? '+ 뜻 추가' : '+뜻';
+      btn.dataset.baseForm = baseForm;
+      btn.dataset.mode = mode;
+      input.replaceWith(btn);
+    }
+  }
+
+  function cancelKrEdit(input) {
+    if (input._committed) return;  // 중복 호출 방지
+    input._committed = true;
+    if (input._clearBlurTimer) input._clearBlurTimer();
+    const original = input.dataset.original;
+    const baseForm = input.dataset.baseForm;
+    const mode     = input.dataset.mode || 'token';
+    const fromBtn  = input.dataset.fromBtn === 'true';
+    const edited   = isEdited(baseForm);
+
+    if (fromBtn || !original || original === '-') {
+      const btn = document.createElement('button');
+      btn.className = mode === 'word' ? 'btn-add-word-kr' : 'btn-add-kr';
+      btn.textContent = mode === 'word' ? '+ 뜻 추가' : '+뜻';
+      btn.dataset.baseForm = baseForm;
+      btn.dataset.mode = mode;
+      input.replaceWith(btn);
+    } else {
+      const span = document.createElement(mode === 'word' ? 'div' : 'span');
+      span.className = (mode === 'word' ? 'word-kr' : 'token-kr') + (edited ? ' edited' : '');
+      span.textContent = original;
+      span.dataset.baseForm = baseForm;
+      span.dataset.original = original;
+      span.dataset.mode = mode;
+      input.replaceWith(span);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 레벨별 색상 맵
+  // ══════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════
+  // 테마 (라이트 / 다크)
+  // ══════════════════════════════════════════════════════
+  const THEME_KEY = 'tangoya_theme';
+
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+      const btn = document.getElementById('themeBtn');
+      if (btn) btn.textContent = '☀️';
+    } else {
+      document.body.classList.remove('light-mode');
+      const btn = document.getElementById('themeBtn');
+      if (btn) btn.textContent = '🌙';
+    }
+    localStorage.setItem(THEME_KEY, theme);
+    // LEVEL_COLOR도 테마에 따라 갱신
+    updateLevelColors();
+  }
+
+  function toggleTheme() {
+    const isLight = document.body.classList.contains('light-mode');
+    applyTheme(isLight ? 'dark' : 'light');
+  }
+
+  function updateLevelColors() {
+    const isLight = document.body.classList.contains('light-mode');
+    LEVEL_COLOR.N1 = isLight ? '#d62b4b' : '#ff4d6d';
+    LEVEL_COLOR.N2 = isLight ? '#c86000' : '#ff8800';
+    LEVEL_COLOR.N3 = isLight ? '#9a8200' : '#ffd600';
+    LEVEL_COLOR.N4 = isLight ? '#00a050' : '#00e676';
+    LEVEL_COLOR.N5 = isLight ? '#0090cc' : '#40c4ff';
+    LEVEL_COLOR['外']  = isLight ? '#5050a0' : '#6060a0';
+    LEVEL_COLOR['文法'] = isLight ? '#444466' : '#444466';
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 관리자 모드
+  // ══════════════════════════════════════════════════════
+  const ADMIN_PW   = '4649';
+  let   isAdminMode = false;
+
+  function openAdminModal() {
+    if (isAdminMode) {
+      // 이미 관리자 → 로그아웃
+      exitAdminMode();
+      return;
+    }
+    const modal = document.getElementById('adminModal');
+    const input = document.getElementById('adminPwInput');
+    const err   = document.getElementById('adminPwError');
+    const icon  = document.getElementById('adminModalIcon');
+    const title = document.getElementById('adminModalTitle');
+    icon.textContent  = '🔐';
+    title.textContent = '관리자 모드';
+    err.textContent   = '';
+    input.value = '';
+    input.classList.remove('error');
+    modal.classList.add('visible');
+    setTimeout(() => input.focus(), 60);
+  }
+
+  function closeAdminModal() {
+    document.getElementById('adminModal').classList.remove('visible');
+    document.getElementById('adminPwInput').value = '';
+    document.getElementById('adminPwError').textContent = '';
+    document.getElementById('adminPwInput').classList.remove('error');
+  }
+
+  function confirmAdmin() {
+    const input = document.getElementById('adminPwInput');
+    const err   = document.getElementById('adminPwError');
+    if (input.value === ADMIN_PW) {
+      closeAdminModal();
+      enterAdminMode();
+    } else {
+      err.textContent = '비밀번호가 올바르지 않습니다';
+      input.classList.add('error');
+      input.value = '';
+      setTimeout(() => {
+        input.classList.remove('error');
+        err.textContent = '';
+      }, 1200);
+      setTimeout(() => input.focus(), 50);
+    }
+  }
+
+  function enterAdminMode() {
+    isAdminMode = true;
+    document.body.classList.add('admin-mode');
+    const btn = document.getElementById('adminBtn');
+    if (btn) { btn.textContent = '🔓'; btn.classList.add('admin-active'); btn.title = '관리자 모드 종료'; }
+    // 현재 결과가 있으면 다시 렌더링
+    if (lastResult) showResult(lastResult.tokens, lastResult.input);
+  }
+
+  function exitAdminMode() {
+    isAdminMode = false;
+    document.body.classList.remove('admin-mode');
+    const btn = document.getElementById('adminBtn');
+    if (btn) { btn.textContent = '🔒'; btn.classList.remove('admin-active'); btn.title = '관리자 모드'; }
+    if (lastResult) showResult(lastResult.tokens, lastResult.input);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 관리자 편집: 토큰 필드 인라인 수정
+  // ══════════════════════════════════════════════════════
+  const ADMIN_EDITS_KEY = 'tangoya_admin_edits';
+  // 저장 형식: { "surface@@origIdx@@inputText": {reading, level, pos, surface} }
+
+  function loadAdminEdits() {
+    try { return JSON.parse(localStorage.getItem(ADMIN_EDITS_KEY) || '{}'); }
+    catch(e) { return {}; }
+  }
+
+  function saveAdminEdit(inputText, origIdx, field, value) {
+    const edits = loadAdminEdits();
+    const key   = origIdx + '@@' + inputText;
+    if (!edits[key]) edits[key] = {};
+    edits[key][field] = value;
+    localStorage.setItem(ADMIN_EDITS_KEY, JSON.stringify(edits));
+  }
+
+  function getAdminEdit(inputText, origIdx) {
+    const edits = loadAdminEdits();
+    return edits[origIdx + '@@' + inputText] || {};
+  }
+
+  /** 분석 후 관리자 편집 내역을 토큰 배열에 적용 */
+  function applyAdminEdits(tokens, inputText) {
+    const edits = loadAdminEdits();
+    return tokens.map(tk => {
+      const key  = tk._origIdx + '@@' + inputText;
+      const edit = edits[key];
+      if (!edit) return tk;
+      return Object.assign({}, tk, {
+        reading:  edit.reading  !== undefined ? edit.reading  : tk.reading,
+        level:    edit.level    !== undefined ? edit.level    : tk.level,
+        pos:      edit.pos      !== undefined ? edit.pos      : tk.pos,
+        surface:  edit.surface  !== undefined ? edit.surface  : tk.surface,
+        baseForm: edit.baseForm !== undefined ? edit.baseForm : tk.baseForm,
+      });
+    });
+  }
+
+  function resetAdminEdits() {
+    if (!confirm('저장된 관리자 편집 내역을 모두 초기화할까요?')) return;
+    localStorage.removeItem(ADMIN_EDITS_KEY);
+    location.reload();
+  }
+
+  const LEVEL_COLOR = {
+    N1: '#ff4d6d', N2: '#ff8800', N3: '#ffd600',
+    N4: '#00e676', N5: '#40c4ff',
+    '外': '#6060a0', '文法': '#444466'
+  };
+
+  // ══════════════════════════════════════════════════════
+  // Enter 키 바인딩 (Shift+Enter 제외)
+  // ══════════════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', () => {
+    applyStoredEdits();
+    applyCustomWords();   // 커스텀 단어 → JLPT_DICT 반영
+    // 저장된 테마 복원
+    applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+    // 푸터 사전 갱신일 표시
+    const footerEl = document.getElementById('footerDictUpdated');
+    if (footerEl) footerEl.textContent = getDictUpdated();
+
+    // 관리자 편집 이벤트 위임
+    // ① select 변경 → 즉시 저장
+    document.addEventListener('change', e => {
+      const el = e.target;
+      if (!isAdminMode) return;
+      if (el.classList.contains('admin-select') && el.dataset.field) {
+        adminSaveField(el);
+      }
+    });
+
+    // ② input: Enter → 저장, Escape → 취소
+    document.addEventListener('keydown', e => {
+      const el = e.target;
+      if (!isAdminMode) return;
+      if (el.classList.contains('admin-input') && el.dataset.field) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          adminSaveField(el);
+          el.blur();
+          el.style.borderColor = '#00e676';
+          setTimeout(() => { el.style.borderColor = ''; }, 700);
+        }
+        if (e.key === 'Escape') { el.blur(); }
+      }
+    });
+
+    // ③ input: 포커스 이탈 → 저장 (capture)
+    document.addEventListener('blur', e => {
+      const el = e.target;
+      if (!isAdminMode) return;
+      if (el.classList.contains('admin-input') && el.dataset.field) {
+        adminSaveField(el);
+      }
+    }, true);
+
+    // ④ 클릭 위임: token-kr / word-kr → 한국어 뜻 편집
+    //              btn-add-kr / btn-add-word-kr → 뜻 추가
+    document.addEventListener('click', e => {
+      if (!isAdminMode) return;
+      const el = e.target;
+
+      // 한국어 뜻 span 클릭
+      if (el.classList.contains('token-kr') || el.classList.contains('word-kr')) {
+        e.stopPropagation();
+        startKrEdit(el);
+        return;
+      }
+
+      // +뜻 / + 뜻 추가 버튼 클릭
+      if (el.classList.contains('btn-add-kr') || el.classList.contains('btn-add-word-kr')) {
+        e.stopPropagation();
+        startKrEditFromBtn(el);
+        return;
+      }
+
+      // 커스텀 단어 삭제 버튼
+      if (el.classList.contains('btn-custom-word-del')) {
+        const surface = el.dataset.surface;
+        if (surface && confirm(`"${surface}" 를 삭제할까요?`)) {
+          deleteCustomWordAndRefresh(surface);
+        }
+        return;
+      }
+    });
+    const ta = document.getElementById('inputText');
+    if (ta) {
+      ta.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          analyze();
+        }
+      });
+    }
+
+    // ── 서버 생존 신호 (탭 닫히면 서버 자동 종료) ──────────
+    // HTTP 서버로 실행 중인 경우에만 활성화
+    if (location.protocol !== 'file:') {
+      setInterval(() => {
+        fetch('/ping').catch(() => {});
+      }, 3000);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════
+  // analyze()
+  // ══════════════════════════════════════════════════════
+  async function analyze() {
+    // 1. 초기화 실패 / tokenizer 미준비 체크
+    if (initFailed) {
+      showError('형태소 분석기 초기화에 실패했습니다. 페이지를 새로고침해 주세요.');
+      return;
+    }
+    if (!tokenizer) {
+      showError('사전 로딩 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+
+    // 2. 입력값 검증
+    const text = (document.getElementById('inputText').value || '').trim();
+    if (!text) {
+      showError('텍스트를 입력해주세요.');
+      return;
+    }
+
+    // 언어 검증: 일본어 문자가 없거나, 비일본어 유니코드(한글·아랍 등)가 포함되면 경고
+    if (!containsJapanese(text) || hasForeignNonJapanese(text)) {
+      showLangModal();
+      return;
+    }
+
+    // 3. UI 초기화
+    hideError();
+    showLoading(true);
+    document.getElementById('resultArea').classList.remove('visible');
+
+    // 4. 비동기 처리 (setTimeout 50ms)
+    setTimeout(() => {
+      try {
+        // ① 형태소 분석
+        const rawTokens = tokenizer.tokenize(text);
+
+        // ② 각 토큰 가공
+        const tokens = rawTokens.map(t => {
+          const surface   = t.surface_form;
+          const baseForm  = (t.basic_form && t.basic_form !== '*') ? t.basic_form : surface;
+          const readingKata = (t.reading && t.reading !== '*') ? t.reading : surface;
+          const readingHira = toHiragana(readingKata);
+          const pos       = (t.pos && t.pos !== '*') ? t.pos : '不明';
+          const posDetail = (t.pos_detail_1 && t.pos_detail_1 !== '*') ? t.pos_detail_1 : '';
+
+          // ③ 사전 검색
+          const info = lookupWord(surface, baseForm, readingHira);
+
+          // ④ 레벨 / 한국어 결정
+          // GRAMMAR_POS는 info 유무와 무관하게 文法 우선 처리
+          const GRAMMAR_POS = ['助詞','助動詞','記号','接続詞'];
+          let level, korean;
+          if (GRAMMAR_POS.includes(pos)) {
+            // 조사・조동사 등은 사전 등재 여부와 무관하게 文法
+            level  = '文法';
+            korean = '-';
+          } else if (info) {
+            level  = info.l;
+            korean = info.k;
+          } else {
+            level  = '外';
+            korean = '-';
+          }
+
+          return { surface, baseForm, reading: readingHira, pos, posDetail, level, korean };
+        });
+
+        // ⑤ 한국어 뜻 편집 내역 적용 (JLPT 미등재 단어 포함 모든 토큰에 반영)
+        const krEdits = loadKrEdits(); // { baseForm: { k, d } }
+        tokens.forEach(tk => {
+          const entry = krEdits[tk.baseForm];
+          if (entry !== undefined) {
+            tk.korean = getKrEditValue(entry);
+          }
+        });
+
+        // ⑤-b 커스텀 단어 자동 병합 + pos 덮어쓰기
+        // 커스텀 단어 surface가 연속 토큰 조합과 일치하면 자동으로 합침
+        const customWords = loadCustomWords();
+        const customMap = {};
+        customWords.forEach(w => { customMap[w.surface] = w; });
+
+        // 토큰 배열을 순회하며 커스텀 단어와 일치하는 연속 구간 자동 병합
+        function autoMergeCustomWords(tkArr) {
+          // 길이가 긴 커스텀 단어 surface 우선 처리 (greedy longest match)
+          const surfaces = Object.keys(customMap).sort((a, b) => b.length - a.length);
+          let result = tkArr.map((tk, i) => Object.assign({}, tk, { _origIdx: tk._origIdx !== undefined ? tk._origIdx : i }));
+
+          for (const cSurface of surfaces) {
+            const cw = customMap[cSurface];
+            let i = 0;
+            const next = [];
+            while (i < result.length) {
+              // i부터 연속 토큰의 surface를 이어 붙이며 커스텀 surface와 일치 확인
+              let matched = false;
+              for (let len = result.length - i; len >= 2; len--) {
+                const combined = result.slice(i, i + len).map(t => t.surface).join('');
+                if (combined === cSurface) {
+                  // 병합 처리
+                  const members = result.slice(i, i + len);
+                  const mergedReading = members.map(t => t.reading).join('');
+                  const mergedInfo = JLPT_DICT[cSurface];
+                  next.push({
+                    surface:        cSurface,
+                    baseForm:       cSurface,
+                    reading:        mergedReading,
+                    pos:            cw.pos || members[0].pos,
+                    posDetail:      members[0].posDetail,
+                    level:          mergedInfo ? mergedInfo.l : (cw.level || '外'),
+                    korean:         mergedInfo ? mergedInfo.k : (cw.korean || '-'),
+                    _origIdx:       members[0]._origIdx,
+                    _mergedIndices: members.map(t => t._origIdx),
+                    _isMerged:      true,
+                    _isCustom:      true
+                  });
+                  i += len;
+                  matched = true;
+                  break;
+                }
+              }
+              if (!matched) {
+                next.push(result[i]);
+                i++;
+              }
+            }
+            result = next;
+          }
+          return result;
+        }
+
+        // 단일 토큰이 커스텀 단어 surface와 일치하는 경우 pos 덮어쓰기도 처리
+        let preTokens = autoMergeCustomWords(tokens.map((tk, i) => Object.assign({}, tk, { _origIdx: i })));
+        // 자동 병합 없이 surface만 일치하는 단독 토큰의 pos도 업데이트
+        preTokens.forEach(tk => {
+          const cw = customMap[tk.surface] || customMap[tk.baseForm];
+          if (cw && !tk._isCustom) tk.pos = cw.pos;
+        });
+
+        // ⑥ 병합 규칙 적용 (수동 병합은 자동 병합 이후에 추가 적용)
+        const mergeGroups  = getMergeGroups(text);
+        const mergedTokens = applyMergeGroups(preTokens, mergeGroups);
+
+        // ⑥-b 관리자 편집 적용
+        const editedTokens = applyAdminEdits(mergedTokens, text);
+
+        // ⑥-c 관리자 편집 후 krEdits 재적용 (baseForm이 변경된 경우 대비)
+        editedTokens.forEach(tk => {
+          const entry = krEdits[tk.baseForm];
+          if (entry !== undefined) {
+            tk.korean = getKrEditValue(entry);
+          }
+        });
+
+        // ⑥ lastResult 저장 (rawTokens도 보관)
+        lastResult = {
+          input:      text,
+          rawTokens:  preTokens,    // 커스텀 자동 병합 적용 후 (수동 병합 기준 원본)
+          tokens:     editedTokens, // 표시/다운로드용
+          analyzedAt: new Date().toISOString()
+        };
+
+        // ⑦ 결과 표시
+        showResult(editedTokens, text);
+
+      } catch (err) {
+        showError('분석 중 오류가 발생했습니다: ' + err.message);
+        console.error(err);
+      } finally {
+        // ⑦ 로딩 종료
+        showLoading(false);
+      }
+    }, 50);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // showResult(tokens, inputText)
+  // ══════════════════════════════════════════════════════
+  function showResult(tokens, inputText) {
+    const content = document.getElementById('resultContent');
+    const area    = document.getElementById('resultArea');
+
+    if (tokens.length === 1) {
+      // ━━ Case A: 단어 1개 ━━
+      const tk = tokens[0];
+      const color   = LEVEL_COLOR[tk.level] || LEVEL_COLOR['外'];
+      const isListed = (tk.level !== '外' && tk.level !== '文法');
+
+      const LEVELS_ALL_A = ['N5','N4','N3','N2','N1','外','文法'];
+      const POS_LIST_A   = ['名詞','動詞','形容詞','形容動詞','副詞','助詞','助動詞',
+                            '接続詞','感動詞','接頭詞','接尾辞','記号','不明'];
+
+      content.innerHTML = `
+        <div class="single-word-card">
+          ${isAdminMode
+            ? `<input class="admin-input reading-input"
+                 style="font-size:18px;max-width:140px;text-align:center;margin-bottom:4px;"
+                 value="${escHtml(tk.reading)}"
+                 title="읽기 수정 (Enter로 저장)"
+                 data-orig-idx="${tk._origIdx ?? 0}"
+                 data-field="reading">`
+            : `<div class="word-reading">${escHtml(tk.reading)}</div>`}
+          ${isAdminMode
+            ? `<input class="admin-input surface-input lg"
+                 value="${escHtml(tk.surface)}"
+                 title="한자표기 수정 (Enter로 저장)"
+                 data-orig-idx="${tk._origIdx ?? 0}"
+                 data-field="surface">`
+            : `<div class="word-jp" style="color:${color}">${escHtml(tk.surface)}</div>`}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:4px 0;">
+            ${isAdminMode
+              ? `<select class="admin-select lg"
+                   title="레벨 수정"
+                   data-orig-idx="${tk._origIdx ?? 0}"
+                   data-field="level">
+                   ${LEVELS_ALL_A.map(lv =>
+                     `<option value="${lv}"${lv===tk.level?' selected':''}>${lv}</option>`
+                   ).join('')}
+                 </select>`
+              : `<span class="word-level-badge lv-${tk.level}"
+                       style="background:${color}22;border:1px solid ${color}55;color:${color}">
+                   ${escHtml(tk.level)}
+                 </span>`}
+            ${isAdminMode
+              ? `<select class="admin-select lg"
+                   title="품사 수정"
+                   data-orig-idx="${tk._origIdx ?? 0}"
+                   data-field="pos">
+                   ${POS_LIST_A.map(p =>
+                     `<option value="${p}"${p===tk.pos?' selected':''}>${p}</option>`
+                   ).join('')}
+                 </select>`
+              : `<span class="word-level-badge" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:'Noto Sans KR',sans-serif;">
+                   ${escHtml(tk.pos)}
+                 </span>`}
+            ${isAdminMode
+              ? `<input class="admin-input lg"
+                   style="font-family:'Noto Serif JP',serif;color:var(--text);"
+                   value="${escHtml(tk.baseForm)}"
+                   title="사전형 수정 (Enter로 저장)"
+                   data-orig-idx="${tk._origIdx ?? 0}"
+                   data-field="baseForm">`
+              : `<span class="word-level-badge" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Noto Serif JP',serif;">
+                   ${escHtml(tk.baseForm)}
+                 </span>`}
+          </div>
+          ${tk.korean !== '-'
+            ? `<div class="word-kr${isEdited(tk.baseForm) ? ' edited' : ''}"
+                   data-base-form="${escHtml(tk.baseForm)}"
+                   data-original="${escHtml(tk.korean)}"
+                   data-mode="word">${escHtml(tk.korean)}</div>`
+            : `<button class="btn-add-word-kr"
+                       data-base-form="${escHtml(tk.baseForm)}"
+                       data-mode="word">+ 뜻 추가</button>`}
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+            ${isListed
+              ? `JLPT <strong style="color:${color}">${escHtml(tk.level)}</strong> 등재 단어`
+              : 'JLPT 미등재'}
+          </div>
+        </div>`;
+
+    } else {
+      // ━━ Case B: 문장 ━━
+
+      // ① 레벨 통계
+      const LEVEL_ORDER = ['N5','N4','N3','N2','N1','外','文法'];
+      const countMap = {};
+      tokens.forEach(tk => { countMap[tk.level] = (countMap[tk.level]||0) + 1; });
+
+      const statsHtml = LEVEL_ORDER
+        .filter(lv => countMap[lv] > 0)
+        .map(lv => {
+          const c = LEVEL_COLOR[lv] || '#888';
+          return `<span style="display:inline-flex;align-items:center;gap:5px;
+                    font-size:12px;font-family:'DM Mono',monospace;color:${c};
+                    background:${c}18;border:1px solid ${c}44;
+                    border-radius:999px;padding:3px 12px;">
+                    ● ${escHtml(lv)} ${countMap[lv]}개
+                  </span>`;
+        }).join('');
+
+      // ② 헤더
+      const headerHtml = `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <span style="font-size:13px;font-weight:500;letter-spacing:0.05em;">분석 결과</span>
+          <span style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;">
+            ${tokens.length} 형태소
+          </span>
+        </div>`;
+
+      // ③ 토큰 카드 플로우
+      const LEVELS_ALL = ['N5','N4','N3','N2','N1','外','文法'];
+      const POS_LIST   = ['名詞','動詞','形容詞','形容動詞','副詞','助詞','助動詞',
+                          '接続詞','感動詞','接頭詞','接尾辞','記号','不明'];
+
+      const cardsHtml = tokens.map((tk, cardIdx) => {
+        const lc    = LEVEL_COLOR[tk.level] || '#888';
+        const isLast = cardIdx === tokens.length - 1;
+
+        // 툴팁 내용
+        const tooltipLines = [
+          `표층형：${escHtml(tk.surface)}`,
+          `사전형：${escHtml(tk.baseForm)}`,
+          `읽기：${escHtml(tk.reading)}`,
+          `품사：${escHtml(tk.pos)}${tk.posDetail ? ' · ' + escHtml(tk.posDetail) : ''}`,
+          `JLPT：${escHtml(tk.level)}`
+        ].join('\n');
+
+        // 병합 버튼 (관리자 모드에서만 표시)
+        const mergeBtn = !isAdminMode ? ''
+          : tk._isMerged
+            ? `<button class="btn-unmerge" title="병합 취소"
+                 onclick="event.stopPropagation();doUnmerge(${tk._origIdx})">✕</button>`
+            : (!isLast
+                ? `<button class="btn-merge" title="다음 형태소와 병합"
+                     onclick="event.stopPropagation();doMerge(${tk._origIdx})">+</button>`
+                : '');
+
+        // 관리자 편집 필드 (reading / surface / level / pos / baseForm)
+        // data-orig-idx + data-field 로 이벤트 위임 방식 처리
+        const adminReadingField = isAdminMode
+          ? `<input class="admin-input reading-input"
+               value="${escHtml(tk.reading)}"
+               title="읽기 수정 (Enter로 저장)"
+               data-orig-idx="${tk._origIdx}"
+               data-field="reading">`
+          : `<span class="token-reading">${escHtml(tk.reading)}</span>`;
+
+        const adminSurfaceField = isAdminMode
+          ? `<input class="admin-input"
+               value="${escHtml(tk.surface)}"
+               title="표층형 수정 (Enter로 저장)"
+               style="font-size:13px;max-width:72px;"
+               data-orig-idx="${tk._origIdx}"
+               data-field="surface">`
+          : `<span class="token-jp">${escHtml(tk.surface)}</span>`;
+
+        const adminLevelField = isAdminMode
+          ? `<select class="admin-select"
+               title="레벨 수정"
+               data-orig-idx="${tk._origIdx}"
+               data-field="level">
+               ${LEVELS_ALL.map(lv =>
+                 `<option value="${lv}"${lv===tk.level?' selected':''}>${lv}</option>`
+               ).join('')}
+             </select>`
+          : `<span class="token-lv">${escHtml(tk.level)}</span>`;
+
+        const adminPosField = isAdminMode
+          ? `<select class="admin-select"
+               title="품사 수정"
+               data-orig-idx="${tk._origIdx}"
+               data-field="pos">
+               ${POS_LIST.map(p =>
+                 `<option value="${p}"${p===tk.pos?' selected':''}>${p}</option>`
+               ).join('')}
+             </select>`
+          : `<span class="token-pos">${escHtml(tk.pos)}</span>`;
+
+        const adminBaseFormField = isAdminMode
+          ? `<input class="admin-input"
+               style="font-size:10px;max-width:72px;font-family:'Noto Serif JP',serif;"
+               value="${escHtml(tk.baseForm)}"
+               title="사전형 수정 (Enter로 저장)"
+               data-orig-idx="${tk._origIdx}"
+               data-field="baseForm">`
+          : '';
+
+        return `
+          <div class="token-card lv-${tk.level}${tk._isMerged ? ' merged' : ''}"
+               title="${isAdminMode ? '' : escHtml(tooltipLines)}"
+               style="position:relative;">
+            ${mergeBtn}
+            ${adminReadingField}
+            ${adminSurfaceField}
+            ${adminLevelField}
+            ${adminPosField}
+            ${adminBaseFormField}
+            ${tk.korean !== '-'
+              ? `<span class="token-kr${isEdited(tk.baseForm) ? ' edited' : ''}"
+                       data-base-form="${escHtml(tk.baseForm)}"
+                       data-original="${escHtml(tk.korean)}"
+                       data-mode="token">${escHtml(tk.korean)}</span>`
+              : `<button class="btn-add-kr"
+                         data-base-form="${escHtml(tk.baseForm)}"
+                         data-mode="token">+뜻</button>`}
+          </div>`;
+      }).join('');
+
+      // ④ 텍스트 미리보기
+      const previewHtml = tokens.map(tk =>
+        `${escHtml(tk.surface)}[${escHtml(tk.reading)}, ${escHtml(tk.pos)}, ${escHtml(tk.level)}, ${escHtml(tk.korean)}]`
+      ).join(' ');
+
+      content.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;">
+          ${statsHtml}
+        </div>
+        ${headerHtml}
+        <div class="token-stream">${cardsHtml}</div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--muted);
+                      margin-bottom:6px;letter-spacing:0.06em;">TEXT PREVIEW</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8;word-break:break-all;">
+            ${previewHtml}
+          </div>
+        </div>`;
+    }
+
+    area.classList.add('visible');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 관리자 필드 저장
+  // ══════════════════════════════════════════════════════
+
+  function adminSaveField(el) {
+    if (!isAdminMode || !lastResult) return;
+    const origIdx = parseInt(el.dataset.origIdx, 10);
+    const field   = el.dataset.field;
+    const value   = el.value.trim();
+    if (!field || isNaN(origIdx) || value === '') return;
+
+    saveAdminEdit(lastResult.input, origIdx, field, value);
+
+    // lastResult.tokens에 즉시 반영
+    lastResult.tokens = lastResult.tokens.map(tk => {
+      if (tk._origIdx === origIdx) {
+        return Object.assign({}, tk, { [field]: value });
+      }
+      return tk;
+    });
+
+    // level/pos/surface/baseForm 변경은 전체 재렌더 (색상·클래스·표시 내용이 바뀌므로)
+    if (field === 'level' || field === 'pos' || field === 'surface' || field === 'baseForm') {
+      showResult(lastResult.tokens, lastResult.input);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 토큰 병합 / 취소 액션
+  // ══════════════════════════════════════════════════════
+
+  /**
+   * origIdx 번째 원본 토큰과 origIdx+1 번째를 병합.
+   * 저장 후 현재 결과를 즉시 다시 렌더링.
+   */
+  function doMerge(origIdx) {
+    if (!isAdminMode || !lastResult) return;
+    const raw = lastResult.rawTokens;
+
+    // rawTokens에서 origIdx에 해당하는 토큰의 배열 위치를 찾아 다음 토큰의 _origIdx를 구함
+    const pos = raw.findIndex(tk => tk._origIdx === origIdx);
+    if (pos < 0 || pos >= raw.length - 1) return;
+    const nextOrigIdx = raw[pos + 1]._origIdx;
+
+    addMerge(lastResult.input, origIdx, nextOrigIdx);
+
+    const groups       = getMergeGroups(lastResult.input);
+    const mergedTokens = applyMergeGroups(raw, groups);
+    lastResult.tokens  = mergedTokens;
+    showResult(mergedTokens, lastResult.input);
+  }
+
+  /**
+   * origIdx가 속한 병합 그룹 전체를 해제.
+   */
+  function doUnmerge(origIdx) {
+    if (!isAdminMode || !lastResult) return;
+    removeMerge(lastResult.input, origIdx);
+
+    const groups       = getMergeGroups(lastResult.input);
+    const mergedTokens = applyMergeGroups(lastResult.rawTokens, groups);
+    lastResult.tokens  = mergedTokens;
+    showResult(mergedTokens, lastResult.input);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 리셋
+  // ══════════════════════════════════════════════════════
+  function resetAll() {
+    const ta = document.getElementById('inputText');
+    if (ta) { ta.value = ''; ta.focus(); }
+    const area = document.getElementById('resultArea');
+    if (area) area.classList.remove('visible');
+    hideError();
+    showLoading(false);
+    lastResult = null;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 다운로드 공통 헬퍼 (UTF-8 with BOM)
+  // ══════════════════════════════════════════════════════
+  function downloadFile(content, filename, mimeType) {
+    const blob = new Blob(['\uFEFF' + content], { type: mimeType + ';charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  // ── downloadJSON ─────────────────────────────────────
+  function downloadJSON() {
+    if (!lastResult) return;
+    const data = {
+      input:       lastResult.input,
+      analyzed_at: lastResult.analyzedAt,
+      tokens: lastResult.tokens.map(t => ({
+        surface:   t.surface,
+        reading:   t.reading,
+        base_form: t.baseForm,
+        pos:       t.pos,
+        level:     t.level,
+        korean:    t.korean
+      }))
+    };
+    downloadFile(JSON.stringify(data, null, 2), 'tangoya_result.json', 'application/json');
+  }
+
+  // ── downloadCSV ─────────────────────────────────────
+  function downloadCSV() {
+    if (!lastResult) return;
+    const header = '원문,읽기,사전형,품사,JLPT레벨,한국어뜻';
+    const rows = lastResult.tokens.map(t => {
+      const cols = [t.surface, t.reading, t.baseForm, t.pos, t.level, t.korean];
+      return cols.map(v => '"' + String(v === undefined ? '' : v).replace(/"/g, '""')
+                        + '"').join(',');
+    });
+    downloadFile(header + '\n' + rows.join('\n'), 'tangoya_result.csv', 'text/csv');
+  }
+
+  // ── downloadTXT ─────────────────────────────────────
+  function downloadTXT() {
+    if (!lastResult) return;
+    const tokenStr = lastResult.tokens
+      .map(t => `${t.surface}[${t.reading}, ${t.pos}, ${t.level}, ${t.korean}]`)
+      .join(' ');
+    const content = '입력: ' + lastResult.input + '\n분석: ' + tokenStr;
+    downloadFile(content, 'tangoya_result.txt', 'text/plain');
+  }
+
+  // ── downloadDictCSV (관리자 전용: 전체 사전 CSV) ──────
+  function downloadDictCSV() {
+    const krEdits     = loadKrEdits();       // { baseForm: korean }
+    const customWords = loadCustomWords();   // [ {surface, reading, level, pos, korean} ]
+
+    // ① JLPT_DICT 전체를 행으로 변환
+    //    히라가나/가타카나 전용 키(표층형 = 읽기)는 한자 키와 중복이므로 스킵
+    const rows = [];
+    const seen = new Set(); // 중복 제거용 (surface 기준)
+
+    // 레벨 정렬 순서
+    const LEVEL_ORDER = { N5:1, N4:2, N3:3, N2:4, N1:5, '外':6, '文法':7 };
+
+    for (const [surface, entry] of Object.entries(JLPT_DICT)) {
+      // 히라가나·가타카나 전용 키는 스킵 (이미 한자 키로 등록되어 있음)
+      if (surface === entry.r) continue;
+      if (seen.has(surface)) continue;
+      seen.add(surface);
+
+      // krEdits로 한국어뜻 덮어씀 (형식: { k, d } 또는 구버전 string)
+      const krEntryS  = krEdits[surface];
+      const krEntryR  = krEdits[entry.r];
+      const krEntry   = krEntryS !== undefined ? krEntryS : krEntryR;
+      const korean    = krEntry !== undefined ? getKrEditValue(krEntry) : entry.k;
+      const isKrEdited = krEntry !== undefined;
+      const source = isKrEdited ? '수정' : '기본';
+      // 수정일: krEdits의 d 필드, 없으면 '-'
+      const date   = isKrEdited ? (krEntry.d || '-') : '-';
+
+      rows.push({
+        surface,
+        reading: entry.r || '',
+        level:   entry.l,
+        korean:  korean || '-',
+        source,
+        date,
+        _rank:   LEVEL_ORDER[entry.l] ?? 9
+      });
+    }
+
+    // ② 커스텀 단어 추가 (source = '추가')
+    customWords.forEach(w => {
+      if (seen.has(w.surface)) {
+        // 기존 기본 사전 항목을 커스텀이 덮어쓴 경우 → source를 '추가'로 업데이트
+        const existing = rows.find(r => r.surface === w.surface);
+        if (existing) {
+          existing.reading = w.reading;
+          existing.level   = w.level;
+          existing.korean  = w.korean || '-';
+          existing.source  = '추가';
+          existing.date    = w.d || '-';
+          existing._rank   = LEVEL_ORDER[w.level] ?? 9;
+        }
+        return;
+      }
+      seen.add(w.surface);
+      rows.push({
+        surface: w.surface,
+        reading: w.reading,
+        level:   w.level,
+        korean:  w.korean || '-',
+        source:  '추가',
+        date:    w.d || '-',
+        _rank:   LEVEL_ORDER[w.level] ?? 9
+      });
+    });
+
+    // ③ 레벨 순 → surface 가나다 순 정렬
+    rows.sort((a, b) => {
+      if (a._rank !== b._rank) return a._rank - b._rank;
+      return a.surface.localeCompare(b.surface, 'ja');
+    });
+
+    // ④ CSV 생성
+    const q = v => '"' + String(v === undefined || v === null ? '' : v)
+                         .replace(/"/g, '""') + '"';
+
+    const header = '표층형,읽기,JLPT레벨,한국어뜻,출처,등록·수정일';
+    const csvRows = rows.map(r =>
+      [r.surface, r.reading, r.level, r.korean, r.source, r.date].map(q).join(',')
+    );
+
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    downloadFile(header + '\n' + csvRows.join('\n'),
+                 `tangoya_dict_${today}.csv`, 'text/csv');
+  }
+
+</script>
+
+</body>
+</html>

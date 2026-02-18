@@ -1,0 +1,23 @@
+#!/bin/bash
+# tangoya (単語屋) — macOS App 실행기
+# 터미널 창 없이 백그라운드에서 서버를 실행합니다.
+
+# 이 앱 번들의 상위 폴더(프로젝트 루트)로 이동
+DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$DIR"
+
+# Python3 존재 여부 확인
+if ! command -v python3 &>/dev/null; then
+  osascript -e 'display alert "Python3가 필요합니다" message "https://www.python.org 에서 Python 3.6 이상을 설치해주세요." as critical'
+  exit 1
+fi
+
+# 이미 실행 중인지 확인 (같은 포트 사용 중이면 브라우저만 열기)
+if lsof -i :8000 -sTCP:LISTEN -t &>/dev/null 2>&1; then
+  open "http://localhost:8000/tangoya.html"
+  exit 0
+fi
+
+# 백그라운드로 서버 시작 (터미널 창 없음)
+nohup python3 dist/start_server.py > /tmp/tangoya.log 2>&1 &
+

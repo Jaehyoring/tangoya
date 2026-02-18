@@ -1,0 +1,32 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist-ssr
+*.local
+
+# dist/ 내 대용량 바이너리는 추적하지 않음 (download_offline_assets.py로 생성)
+dist/dict/
+dist/fonts/*.woff2
+dist/kuromoji.js
+
+# dist/ 내 소스 파일은 추적
+# dist/tangoya.html, dist/tangoya_template.html, dist/fonts/fonts.css,
+# dist/start_server.py 는 git으로 관리
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
