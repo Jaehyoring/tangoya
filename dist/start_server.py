@@ -125,13 +125,18 @@ def fetch_text(url):
 # ─────────────────────────────────────────────────────────────
 # 에셋 다운로드 함수
 # ─────────────────────────────────────────────────────────────
+def _download_if_missing(url, dest, label=None):
+    """파일이 없을 때만 다운로드합니다. 이미 존재하면 skip."""
+    if os.path.exists(dest):
+        return False
+    download_file(url, dest, label or os.path.basename(dest))
+    return True
+
+
 def download_kuromoji_js():
     dest = os.path.join(DIST_DIR, 'kuromoji.js')
-    if os.path.exists(dest):
+    if not _download_if_missing(KUROMOJI_JS_URL, dest, 'kuromoji.js'):
         print('  –  kuromoji.js 이미 존재 (skip)')
-        return
-    print('  Kuromoji JS 다운로드 중...')
-    download_file(KUROMOJI_JS_URL, dest, 'kuromoji.js')
 
 
 def download_dict_files():
@@ -139,15 +144,15 @@ def download_dict_files():
     missing = [f for f in DICT_FILES
                if not os.path.exists(os.path.join(DICT_DIR, f))]
     if not missing:
-        print(f'  –  dict/ 파일 전부 존재 (skip)')
+        print('  –  dict/ 파일 전부 존재 (skip)')
         return
     print(f'  Kuromoji 사전 파일 다운로드 중 ({len(missing)}개 누락, ~18 MB)...')
-    for fname in DICT_FILES:
-        dest = os.path.join(DICT_DIR, fname)
-        if os.path.exists(dest):
-            continue
-        url = f'{KUROMOJI_DICT_BASE}/{fname}'
-        download_file(url, dest, fname)
+    for fname in missing:
+        _download_if_missing(
+            f'{KUROMOJI_DICT_BASE}/{fname}',
+            os.path.join(DICT_DIR, fname),
+            fname,
+        )
 
 
 def download_fonts():
@@ -195,8 +200,7 @@ def download_fonts():
             local_name  = f'{safe_family}-{weight}-{url_hash}.woff2'
             local_path  = os.path.join(FONTS_DIR, local_name)
 
-            if not os.path.exists(local_path):
-                download_file(woff2_url, local_path, local_name)
+                _download_if_missing(woff2_url, local_path, local_name)
 
             downloaded_urls[woff2_url] = local_name
 
@@ -261,17 +265,24 @@ def find_free_port(start_port):
 # ─────────────────────────────────────────────────────────────
 # 탭 닫힘 감지 — 워치독
 # ─────────────────────────────────────────────────────────────
-_last_ping = time.time()   # 마지막 /ping 수신 시각
-_PING_TIMEOUT = 8          # 이 시간(초) 동안 ping 없으면 종료
-_app_opened = False        # 브라우저가 최초로 열렸는지 여부
+PING_TIMEOUT = 8  # 이 시간(초) 동안 ping 없으면 종료
+
+
+class AppState:
+    """서버 런타임 상태를 캡슐화합니다."""
+    def __init__(self):
+        self.last_ping  = time.time()  # 마지막 /ping 수신 시각
+        self.app_opened = False        # 브라우저가 최초로 열렸는지 여부
+
+
+_state = AppState()
 
 
 def watchdog(server):
     """브라우저 탭이 닫혀 ping이 끊기면 서버를 종료합니다."""
-    global _app_opened
     # 브라우저가 열릴 때까지 대기 (최대 30초)
     for _ in range(300):
-        if _app_opened:
+        if _state.app_opened:
             break
         time.sleep(0.1)
     else:
@@ -279,11 +290,10 @@ def watchdog(server):
 
     # 브라우저가 열린 후 ping 모니터링 시작
     # 처음 ping이 올 때까지 잠시 여유 부여
-    time.sleep(_PING_TIMEOUT + 2)
+    time.sleep(PING_TIMEOUT + 2)
 
     while True:
-        elapsed = time.time() - _last_ping
-        if elapsed > _PING_TIMEOUT:
+        if time.time() - _state.last_ping > PING_TIMEOUT:
             print('\n  브라우저 탭이 닫혔습니다. 서버를 종료합니다.')
             server.server_close()
             os._exit(0)
@@ -300,10 +310,9 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         print(f'  [{self.address_string()}] {args[0]}')
 
     def do_GET(self):
-        global _last_ping, _app_opened
         if self.path == '/ping':
-            _last_ping = time.time()
-            _app_opened = True
+            _state.last_ping  = time.time()
+            _state.app_opened = True
             self.send_response(200)
             self.send_header('Content-Type', 'text/plain')
             self.send_header('Access-Control-Allow-Origin', '*')

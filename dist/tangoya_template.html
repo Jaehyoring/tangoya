@@ -1808,10 +1808,41 @@
 
   /** 히라가나 → 카타카나 변환 */
   function toKatakana(str) {
-    return str.replace(/[\u3041-\u3096]/g, ch =>
+    return str.replace(REGEX.HIRAGANA, ch =>
       String.fromCharCode(ch.charCodeAt(0) + 0x60)
     );
   }
+
+  // ══════════════════════════════════════════════════════
+  // 전역 상수
+  // ══════════════════════════════════════════════════════
+
+  /** 조사·조동사 등 항상 文法으로 처리할 품사 목록 */
+  const GRAMMAR_POS = ['助詞', '助動詞', '記号', '接続詞'];
+
+  /** 앱 동작 관련 설정값 */
+  const CONFIG = {
+    ADMIN_ERROR_CLEAR_MS:   1200,   // 관리자 비밀번호 오류 표시 지속 시간
+    LANG_MODAL_FOCUS_MS:      50,   // 언어 경고 모달 포커스 딜레이
+    ADMIN_MODAL_FOCUS_MS:     60,   // 관리자 모달 포커스 딜레이
+    ADMIN_SAVED_FLASH_MS:    700,   // 저장 완료 초록 테두리 지속 시간
+    SERVER_PING_INTERVAL_MS: 3000,  // 서버 탭 닫힘 감지 폴링 주기
+  };
+
+  /** 정규식 상수 — 반복 컴파일 방지 */
+  const REGEX = {
+    HIRAGANA:      /[\u3041-\u3096]/g,
+    KATAKANA:      /[\u30A1-\u30F6]/g,
+    JAPANESE:      /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/,
+    DOT_SEPARATOR: /[·・]/,
+    ALLOWED_CHARS: /[\x00-\x7F\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\uFF00-\uFFEF]/,
+  };
+
+  /** 테마별 레벨 색상표 */
+  const COLOR_SCHEMES = {
+    dark:  { N1: '#ff4d6d', N2: '#ff8800', N3: '#ffd600', N4: '#00e676', N5: '#40c4ff', '外': '#6060a0', '文法': '#444466' },
+    light: { N1: '#d62b4b', N2: '#c86000', N3: '#9a8200', N4: '#00a050', N5: '#0090cc', '外': '#5050a0', '文法': '#444466' },
+  };
 
   /** JLPT_DICT 검색: {r, l, k} 또는 null 반환 */
   // 레벨 우선순위: N5가 가장 낮은 급수(초급) = 최우선
@@ -1835,9 +1866,8 @@
 
       // 4. '·' '・' 포함 시 분리 후 각 부분 조회
       if (key && (key.includes('·') || key.includes('・'))) {
-        for (const part of key.split(/[·・]/)) {
-          const p = part.trim();
-          if (p) keepLowest(JLPT_DICT[p]);
+        for (const part of key.split(REGEX.DOT_SEPARATOR)) {
+          if (part) keepLowest(JLPT_DICT[part]);
         }
       }
 
@@ -1857,7 +1887,7 @@
 
   /** 히라가나·가타카나·한자가 1자라도 포함되어 있으면 true */
   function containsJapanese(str) {
-    return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/.test(str);
+    return REGEX.JAPANESE.test(str);
   }
 
   /**
@@ -1866,9 +1896,8 @@
    */
   function hasForeignNonJapanese(str) {
     // 허용 범위: ASCII 전체, 일본어 구두점·전각, 히라가나, 가타카나, CJK 한자, 전각 ASCII
-    const allowed = /[\x00-\x7F\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\uFF00-\uFFEF]/;
     for (const ch of str) {
-      if (!allowed.test(ch)) return true;
+      if (!REGEX.ALLOWED_CHARS.test(ch)) return true;
     }
     return false;
   }
@@ -1934,7 +1963,7 @@
 
   /** 카타카나(U+30A1~U+30F6) → 히라가나 변환 */
   function toHiragana(str) {
-    return (str||'').replace(/[\u30A1-\u30F6]/g, ch =>
+    return (str||'').replace(REGEX.KATAKANA, ch =>
       String.fromCharCode(ch.charCodeAt(0) - 0x60)
     );
   }
@@ -1970,19 +1999,35 @@
   }
 
   // ══════════════════════════════════════════════════════
+  // localStorage 팩토리 — 단순 JSON 스토어 공통 패턴
+  // ══════════════════════════════════════════════════════
+  /**
+   * createStore(key, defaultValue)
+   * → { load(), save(data) } 반환
+   * load: JSON.parse 실패 시 defaultValue 반환
+   * save: JSON.stringify 후 setItem
+   */
+  function createStore(key, defaultValue) {
+    return {
+      load() {
+        try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue)); }
+        catch(e) { return defaultValue; }
+      },
+      save(data) {
+        localStorage.setItem(key, JSON.stringify(data));
+      },
+    };
+  }
+
+  // ══════════════════════════════════════════════════════
   // 토큰 병합 규칙 — localStorage 모듈
   // ══════════════════════════════════════════════════════
   // 저장 형식: { "inputText": [[0,1],[3,4], ...], ... }
   // 각 배열은 "병합 시작 인덱스들" (원본 rawTokens 기준)
 
-  function loadMergeRules() {
-    try { return JSON.parse(localStorage.getItem(MERGE_RULES_KEY) || '{}'); }
-    catch(e) { return {}; }
-  }
-
-  function saveMergeRules(rules) {
-    localStorage.setItem(MERGE_RULES_KEY, JSON.stringify(rules));
-  }
+  const mergeStore = createStore(MERGE_RULES_KEY, {});
+  function loadMergeRules() { return mergeStore.load(); }
+  function saveMergeRules(rules) { mergeStore.save(rules); }
 
   /** 특정 입력 텍스트에 대한 병합 그룹 목록 반환 (없으면 []) */
   function getMergeGroups(inputText) {
@@ -2079,7 +2124,6 @@
 
         // 사전 재검색 (병합된 표층형)
         const mergedInfo = lookupWord(mergedSurface, mergedSurface, mergedReading);
-        const GRAMMAR_POS = ['助詞','助動詞','記号','接続詞'];
         let mergedLevel, mergedKorean;
         if (GRAMMAR_POS.includes(first.pos)) {
           mergedLevel = '文法'; mergedKorean = '-';
@@ -2130,10 +2174,9 @@
     } catch(e) { return {}; }
   }
 
+  const krEditsStore = createStore(KR_EDITS_KEY, {});
   /** { baseForm: { k, d } } 형태 그대로 저장 */
-  function saveKrEdits(edits) {
-    localStorage.setItem(KR_EDITS_KEY, JSON.stringify(edits));
-  }
+  function saveKrEdits(edits) { krEditsStore.save(edits); }
 
   /** 한국어 뜻 문자열만 추출하는 헬퍼 */
   function getKrEditValue(entry) {
@@ -2189,14 +2232,9 @@
   // ══════════════════════════════════════════════════════
   // 저장 형식: [ {surface, reading, level, pos, korean}, ... ]
 
-  function loadCustomWords() {
-    try { return JSON.parse(localStorage.getItem(CUSTOM_WORDS_KEY) || '[]'); }
-    catch(e) { return []; }
-  }
-
-  function saveCustomWords(words) {
-    localStorage.setItem(CUSTOM_WORDS_KEY, JSON.stringify(words));
-  }
+  const customWordsStore = createStore(CUSTOM_WORDS_KEY, []);
+  function loadCustomWords() { return customWordsStore.load(); }
+  function saveCustomWords(words) { customWordsStore.save(words); }
 
   /** 저장된 커스텀 단어를 JLPT_DICT에 즉시 반영 */
   function applyCustomWords() {
@@ -2513,14 +2551,8 @@
   }
 
   function updateLevelColors() {
-    const isLight = document.body.classList.contains('light-mode');
-    LEVEL_COLOR.N1 = isLight ? '#d62b4b' : '#ff4d6d';
-    LEVEL_COLOR.N2 = isLight ? '#c86000' : '#ff8800';
-    LEVEL_COLOR.N3 = isLight ? '#9a8200' : '#ffd600';
-    LEVEL_COLOR.N4 = isLight ? '#00a050' : '#00e676';
-    LEVEL_COLOR.N5 = isLight ? '#0090cc' : '#40c4ff';
-    LEVEL_COLOR['外']  = isLight ? '#5050a0' : '#6060a0';
-    LEVEL_COLOR['文法'] = isLight ? '#444466' : '#444466';
+    const scheme = COLOR_SCHEMES[document.body.classList.contains('light-mode') ? 'light' : 'dark'];
+    Object.assign(LEVEL_COLOR, scheme);
   }
 
   // ══════════════════════════════════════════════════════
@@ -2546,7 +2578,7 @@
     input.value = '';
     input.classList.remove('error');
     modal.classList.add('visible');
-    setTimeout(() => input.focus(), 60);
+    setTimeout(() => input.focus(), CONFIG.ADMIN_MODAL_FOCUS_MS);
   }
 
   function closeAdminModal() {
@@ -2569,8 +2601,8 @@
       setTimeout(() => {
         input.classList.remove('error');
         err.textContent = '';
-      }, 1200);
-      setTimeout(() => input.focus(), 50);
+      }, CONFIG.ADMIN_ERROR_CLEAR_MS);
+      setTimeout(() => input.focus(), CONFIG.LANG_MODAL_FOCUS_MS);
     }
   }
 
@@ -2597,17 +2629,15 @@
   const ADMIN_EDITS_KEY = 'tangoya_admin_edits';
   // 저장 형식: { "surface@@origIdx@@inputText": {reading, level, pos, surface} }
 
-  function loadAdminEdits() {
-    try { return JSON.parse(localStorage.getItem(ADMIN_EDITS_KEY) || '{}'); }
-    catch(e) { return {}; }
-  }
+  const adminEditsStore = createStore(ADMIN_EDITS_KEY, {});
+  function loadAdminEdits() { return adminEditsStore.load(); }
 
   function saveAdminEdit(inputText, origIdx, field, value) {
     const edits = loadAdminEdits();
     const key   = origIdx + '@@' + inputText;
     if (!edits[key]) edits[key] = {};
     edits[key][field] = value;
-    localStorage.setItem(ADMIN_EDITS_KEY, JSON.stringify(edits));
+    adminEditsStore.save(edits);
   }
 
   function getAdminEdit(inputText, origIdx) {
@@ -2676,7 +2706,7 @@
           adminSaveField(el);
           el.blur();
           el.style.borderColor = '#00e676';
-          setTimeout(() => { el.style.borderColor = ''; }, 700);
+          setTimeout(() => { el.style.borderColor = ''; }, CONFIG.ADMIN_SAVED_FLASH_MS);
         }
         if (e.key === 'Escape') { el.blur(); }
       }
@@ -2735,9 +2765,121 @@
     if (location.protocol !== 'file:') {
       setInterval(() => {
         fetch('/ping').catch(() => {});
-      }, 3000);
+      }, CONFIG.SERVER_PING_INTERVAL_MS);
     }
   });
+
+  // ══════════════════════════════════════════════════════
+  // processTokens(text) — 형태소 분석 → 후처리 파이프라인
+  // analyze() 로부터 분리된 순수 데이터 변환 함수
+  // 반환: { rawTokens, tokens }
+  //   rawTokens: 커스텀 자동 병합 후 토큰 (수동 병합 기준 원본)
+  //   tokens:    최종 편집 적용 토큰 (표시/다운로드용)
+  // ══════════════════════════════════════════════════════
+  function processTokens(text) {
+    // ① 형태소 분석
+    const kuroTokens = tokenizer.tokenize(text);
+
+    // ② 각 토큰 가공 (Kuromoji 원시 토큰 → 앱 토큰 객체)
+    const tokens = kuroTokens.map(t => {
+      const surface     = t.surface_form;
+      const baseForm    = (t.basic_form && t.basic_form !== '*') ? t.basic_form : surface;
+      const readingKata = (t.reading && t.reading !== '*') ? t.reading : surface;
+      const readingHira = toHiragana(readingKata);
+      const pos         = (t.pos && t.pos !== '*') ? t.pos : '不明';
+      const posDetail   = (t.pos_detail_1 && t.pos_detail_1 !== '*') ? t.pos_detail_1 : '';
+
+      // ③ 사전 검색 + 레벨/한국어 결정
+      const info = lookupWord(surface, baseForm, readingHira);
+      let level, korean;
+      if (GRAMMAR_POS.includes(pos)) {
+        level = '文法'; korean = '-';
+      } else if (info) {
+        level = info.l; korean = info.k;
+      } else {
+        level = '外'; korean = '-';
+      }
+      return { surface, baseForm, reading: readingHira, pos, posDetail, level, korean };
+    });
+
+    // ④ 한국어 편집 내역 적용
+    const krEdits = loadKrEdits();
+    tokens.forEach(tk => {
+      const entry = krEdits[tk.baseForm];
+      if (entry !== undefined) tk.korean = getKrEditValue(entry);
+    });
+
+    // ⑤ 커스텀 단어 자동 병합 (greedy longest match)
+    const customWords = loadCustomWords();
+    const customMap = {};
+    customWords.forEach(w => { customMap[w.surface] = w; });
+
+    const rawTokens = autoMergeCustomWords(
+      tokens.map((tk, i) => Object.assign({}, tk, { _origIdx: i })),
+      customMap
+    );
+    // 자동 병합 없이 surface만 일치하는 단독 토큰의 pos 덮어쓰기
+    rawTokens.forEach(tk => {
+      const cw = customMap[tk.surface] || customMap[tk.baseForm];
+      if (cw && !tk._isCustom) tk.pos = cw.pos;
+    });
+
+    // ⑥ 수동 병합 규칙 적용
+    const mergedTokens = applyMergeGroups(rawTokens, getMergeGroups(text));
+
+    // ⑦ 관리자 편집 적용
+    const editedTokens = applyAdminEdits(mergedTokens, text);
+
+    // ⑧ 관리자 편집 후 krEdits 재적용 (baseForm 변경 대비)
+    editedTokens.forEach(tk => {
+      const entry = krEdits[tk.baseForm];
+      if (entry !== undefined) tk.korean = getKrEditValue(entry);
+    });
+
+    return { rawTokens, tokens: editedTokens };
+  }
+
+  /**
+   * 커스텀 단어 자동 병합 — processTokens()에서 사용
+   * customMap: { surface → customWordObj }
+   * greedy longest match로 연속 토큰 병합
+   */
+  function autoMergeCustomWords(tkArr, customMap) {
+    const surfaces = Object.keys(customMap).sort((a, b) => b.length - a.length);
+    let result = tkArr;
+    for (const cSurface of surfaces) {
+      const cw = customMap[cSurface];
+      let i = 0;
+      const next = [];
+      while (i < result.length) {
+        let matched = false;
+        for (let len = result.length - i; len >= 2; len--) {
+          const combined = result.slice(i, i + len).map(t => t.surface).join('');
+          if (combined === cSurface) {
+            const members = result.slice(i, i + len);
+            const mergedInfo = JLPT_DICT[cSurface];
+            next.push({
+              surface:        cSurface,
+              baseForm:       cSurface,
+              reading:        members.map(t => t.reading).join(''),
+              pos:            cw.pos || members[0].pos,
+              posDetail:      members[0].posDetail,
+              level:          mergedInfo ? mergedInfo.l : (cw.level || '外'),
+              korean:         mergedInfo ? mergedInfo.k : (cw.korean || '-'),
+              _origIdx:       members[0]._origIdx,
+              _mergedIndices: members.map(t => t._origIdx),
+              _isMerged:      true,
+              _isCustom:      true
+            });
+            i += len; matched = true; break;
+          }
+        }
+        if (!matched) { next.push(result[i]); i++; }
+      }
+      result = next;
+    }
+    return result;
+  }
 
   // ══════════════════════════════════════════════════════
   // analyze()
@@ -2771,145 +2913,23 @@
     showLoading(true);
     document.getElementById('resultArea').classList.remove('visible');
 
-    // 4. 비동기 처리 (setTimeout 50ms)
+    // 4. 비동기 처리
     setTimeout(() => {
       try {
-        // ① 형태소 분석
-        const rawTokens = tokenizer.tokenize(text);
+        const { rawTokens, tokens: editedTokens } = processTokens(text);
 
-        // ② 각 토큰 가공
-        const tokens = rawTokens.map(t => {
-          const surface   = t.surface_form;
-          const baseForm  = (t.basic_form && t.basic_form !== '*') ? t.basic_form : surface;
-          const readingKata = (t.reading && t.reading !== '*') ? t.reading : surface;
-          const readingHira = toHiragana(readingKata);
-          const pos       = (t.pos && t.pos !== '*') ? t.pos : '不明';
-          const posDetail = (t.pos_detail_1 && t.pos_detail_1 !== '*') ? t.pos_detail_1 : '';
-
-          // ③ 사전 검색
-          const info = lookupWord(surface, baseForm, readingHira);
-
-          // ④ 레벨 / 한국어 결정
-          // GRAMMAR_POS는 info 유무와 무관하게 文法 우선 처리
-          const GRAMMAR_POS = ['助詞','助動詞','記号','接続詞'];
-          let level, korean;
-          if (GRAMMAR_POS.includes(pos)) {
-            // 조사・조동사 등은 사전 등재 여부와 무관하게 文法
-            level  = '文法';
-            korean = '-';
-          } else if (info) {
-            level  = info.l;
-            korean = info.k;
-          } else {
-            level  = '外';
-            korean = '-';
-          }
-
-          return { surface, baseForm, reading: readingHira, pos, posDetail, level, korean };
-        });
-
-        // ⑤ 한국어 뜻 편집 내역 적용 (JLPT 미등재 단어 포함 모든 토큰에 반영)
-        const krEdits = loadKrEdits(); // { baseForm: { k, d } }
-        tokens.forEach(tk => {
-          const entry = krEdits[tk.baseForm];
-          if (entry !== undefined) {
-            tk.korean = getKrEditValue(entry);
-          }
-        });
-
-        // ⑤-b 커스텀 단어 자동 병합 + pos 덮어쓰기
-        // 커스텀 단어 surface가 연속 토큰 조합과 일치하면 자동으로 합침
-        const customWords = loadCustomWords();
-        const customMap = {};
-        customWords.forEach(w => { customMap[w.surface] = w; });
-
-        // 토큰 배열을 순회하며 커스텀 단어와 일치하는 연속 구간 자동 병합
-        function autoMergeCustomWords(tkArr) {
-          // 길이가 긴 커스텀 단어 surface 우선 처리 (greedy longest match)
-          const surfaces = Object.keys(customMap).sort((a, b) => b.length - a.length);
-          let result = tkArr.map((tk, i) => Object.assign({}, tk, { _origIdx: tk._origIdx !== undefined ? tk._origIdx : i }));
-
-          for (const cSurface of surfaces) {
-            const cw = customMap[cSurface];
-            let i = 0;
-            const next = [];
-            while (i < result.length) {
-              // i부터 연속 토큰의 surface를 이어 붙이며 커스텀 surface와 일치 확인
-              let matched = false;
-              for (let len = result.length - i; len >= 2; len--) {
-                const combined = result.slice(i, i + len).map(t => t.surface).join('');
-                if (combined === cSurface) {
-                  // 병합 처리
-                  const members = result.slice(i, i + len);
-                  const mergedReading = members.map(t => t.reading).join('');
-                  const mergedInfo = JLPT_DICT[cSurface];
-                  next.push({
-                    surface:        cSurface,
-                    baseForm:       cSurface,
-                    reading:        mergedReading,
-                    pos:            cw.pos || members[0].pos,
-                    posDetail:      members[0].posDetail,
-                    level:          mergedInfo ? mergedInfo.l : (cw.level || '外'),
-                    korean:         mergedInfo ? mergedInfo.k : (cw.korean || '-'),
-                    _origIdx:       members[0]._origIdx,
-                    _mergedIndices: members.map(t => t._origIdx),
-                    _isMerged:      true,
-                    _isCustom:      true
-                  });
-                  i += len;
-                  matched = true;
-                  break;
-                }
-              }
-              if (!matched) {
-                next.push(result[i]);
-                i++;
-              }
-            }
-            result = next;
-          }
-          return result;
-        }
-
-        // 단일 토큰이 커스텀 단어 surface와 일치하는 경우 pos 덮어쓰기도 처리
-        let preTokens = autoMergeCustomWords(tokens.map((tk, i) => Object.assign({}, tk, { _origIdx: i })));
-        // 자동 병합 없이 surface만 일치하는 단독 토큰의 pos도 업데이트
-        preTokens.forEach(tk => {
-          const cw = customMap[tk.surface] || customMap[tk.baseForm];
-          if (cw && !tk._isCustom) tk.pos = cw.pos;
-        });
-
-        // ⑥ 병합 규칙 적용 (수동 병합은 자동 병합 이후에 추가 적용)
-        const mergeGroups  = getMergeGroups(text);
-        const mergedTokens = applyMergeGroups(preTokens, mergeGroups);
-
-        // ⑥-b 관리자 편집 적용
-        const editedTokens = applyAdminEdits(mergedTokens, text);
-
-        // ⑥-c 관리자 편집 후 krEdits 재적용 (baseForm이 변경된 경우 대비)
-        editedTokens.forEach(tk => {
-          const entry = krEdits[tk.baseForm];
-          if (entry !== undefined) {
-            tk.korean = getKrEditValue(entry);
-          }
-        });
-
-        // ⑥ lastResult 저장 (rawTokens도 보관)
         lastResult = {
           input:      text,
-          rawTokens:  preTokens,    // 커스텀 자동 병합 적용 후 (수동 병합 기준 원본)
-          tokens:     editedTokens, // 표시/다운로드용
+          rawTokens,            // 커스텀 자동 병합 적용 후 (수동 병합 기준 원본)
+          tokens:     editedTokens,
           analyzedAt: new Date().toISOString()
         };
-
-        // ⑦ 결과 표시
         showResult(editedTokens, text);
 
       } catch (err) {
         showError('분석 중 오류가 발생했습니다: ' + err.message);
         console.error(err);
       } finally {
-        // ⑦ 로딩 종료
         showLoading(false);
       }
     }, 50);
