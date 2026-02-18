@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TANGOYA（単語屋）</title>
 
-  <!-- Google Fonts (로컬) -->
-  <link href="fonts/fonts.css" rel="stylesheet" />
+  <!-- Google Fonts (CDN) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <!-- Kuromoji.js (로컬) -->
-  <script src="kuromoji.js"></script>
+  <!-- Kuromoji.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
 
   <style>
     /* ══════════════════════════════════════════
@@ -2155,7 +2157,7 @@
   function initKuromoji() {
     return new Promise((resolve, reject) => {
       kuromoji
-        .builder({ dicPath: 'dict' })
+        .builder({ dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict' })
         .build((err, _tokenizer) => {
           if (err) {
             // err가 Event 객체(XHR onerror)이거나 문자열일 수 있음
