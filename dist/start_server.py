@@ -200,7 +200,7 @@ def download_fonts():
             local_name  = f'{safe_family}-{weight}-{url_hash}.woff2'
             local_path  = os.path.join(FONTS_DIR, local_name)
 
-                _download_if_missing(woff2_url, local_path, local_name)
+            _download_if_missing(woff2_url, local_path, local_name)
 
             downloaded_urls[woff2_url] = local_name
 
