@@ -12,9 +12,9 @@ dist-ssr
 *.local
 
 # dist/ 내 대용량 바이너리는 추적하지 않음 (download_offline_assets.py로 생성)
-dist/dict/
+# dist/dict/ — GitHub Pages 온라인 배포를 위해 추적 허용
 dist/fonts/*.woff2
-dist/kuromoji.js
+# dist/kuromoji.js — GitHub Pages 온라인 배포를 위해 추적 허용
 
 # 배포용 폴더 (대용량 바이너리 포함, git 추적 제외)
 release/

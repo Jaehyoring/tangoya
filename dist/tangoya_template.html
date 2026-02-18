@@ -11,7 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <!-- Kuromoji.js (CDN) — async로 HTML 파싱 블로킹 없이 병렬 다운로드 -->
-  <script async src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" crossorigin="anonymous"></script>
+  <!-- Kuromoji.js (로컬 — GitHub Pages 서빙) -->
+  <script async src="kuromoji.js"></script>
 
   <style>
     /* ══════════════════════════════════════════
@@ -2157,7 +2158,7 @@
   function initKuromoji() {
     return new Promise((resolve, reject) => {
       kuromoji
-        .builder({ dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict' })
+        .builder({ dicPath: 'dict' })
         .build((err, _tokenizer) => {
           if (err) {
             // err가 Event 객체(XHR onerror)이거나 문자열일 수 있음
