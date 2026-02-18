@@ -10,6 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
+  <!-- Kuromoji.js (CDN) — async로 HTML 파싱 블로킹 없이 병렬 다운로드 -->
+  <script async src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" crossorigin="anonymous"></script>
+
   <style>
     /* ══════════════════════════════════════════
        CSS 변수
@@ -4091,8 +4094,6 @@
 
 </script>
 
-<!-- Kuromoji.js (CDN) — body 끝에 로드하여 HTML 렌더링 블로킹 방지 -->
-<script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js" crossorigin="anonymous"></script>
 
 </body>
 </html>
