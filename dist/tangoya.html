@@ -11,9 +11,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <!-- Kuromoji.js (CDN) — async로 HTML 파싱 블로킹 없이 병렬 다운로드 -->
-  <!-- Kuromoji.js (로컬 — GitHub Pages 서빙) -->
-  <script async src="kuromoji.js"></script>
-
   <style>
     /* ══════════════════════════════════════════
        CSS 변수
@@ -2152,36 +2149,40 @@
   // ══════════════════════════════════════════════════════
   // 작업 2: Kuromoji 초기화
   // ══════════════════════════════════════════════════════
-  let tokenizer   = null;
+  let tokenizer   = null;  // { postMessage, _callbacks, _nextId } — Worker 래퍼
   let initFailed  = false;
 
+  /** Web Worker로 kuromoji 초기화. resolve: tokenizer 래퍼 객체 */
   function initKuromoji() {
     return new Promise((resolve, reject) => {
-      kuromoji
-        .builder({ dicPath: 'dict' })
-        .build((err, _tokenizer) => {
-          if (err) {
-            // err가 Event 객체(XHR onerror)이거나 문자열일 수 있음
-            const msg = (err && err.message) ? err.message
-                      : (typeof err === 'string') ? err
-                      : '사전 파일 로드 실패';
-            reject(new Error(msg));
-            return;
-          }
-          resolve(_tokenizer);
-        });
-    });
-  }
+      const worker = new Worker('kuromoji-worker.js');
+      const callbacks = {};
+      let nextId = 1;
 
-  /** kuromoji 전역 변수가 로드될 때까지 최대 10초 대기 */
-  function waitForKuromoji(timeout = 10000) {
-    return new Promise((resolve, reject) => {
-      if (typeof kuromoji !== 'undefined') { resolve(); return; }
-      const start = Date.now();
-      const check = setInterval(() => {
-        if (typeof kuromoji !== 'undefined') { clearInterval(check); resolve(); }
-        else if (Date.now() - start > timeout) { clearInterval(check); reject(new Error('kuromoji is not defined')); }
-      }, 50);
+      worker.onmessage = function(e) {
+        const msg = e.data;
+        if (msg.type === 'ready') {
+          // tokenizer 래퍼: tokenize(text) → Promise<tokens>
+          resolve({
+            tokenize(text) {
+              return new Promise((res, rej) => {
+                const id = nextId++;
+                callbacks[id] = { res, rej };
+                worker.postMessage({ type: 'tokenize', id, text });
+              });
+            }
+          });
+        } else if (msg.type === 'error') {
+          reject(new Error(msg.message));
+        } else if (msg.type === 'tokenize_result') {
+          if (callbacks[msg.id]) { callbacks[msg.id].res(msg.tokens); delete callbacks[msg.id]; }
+        } else if (msg.type === 'tokenize_error') {
+          if (callbacks[msg.id]) { callbacks[msg.id].rej(new Error(msg.message)); delete callbacks[msg.id]; }
+        }
+      };
+      worker.onerror = function(e) {
+        reject(new Error('Worker 오류: ' + e.message));
+      };
     });
   }
 
@@ -2212,7 +2213,6 @@
       applyStoredEdits();    // 한국어 뜻 사용자 편집 반영
       applyCustomWords();    // 커스텀 단어 반영
       applyStoredCriteria(); // 분류기준 반영
-      await waitForKuromoji();
       tokenizer = await initKuromoji();
       showLoading(false);
       if (analyzeBtn) { analyzeBtn.disabled = false; analyzeBtn.style.opacity = ''; }
@@ -3218,9 +3218,9 @@
   //   rawTokens: 커스텀 자동 병합 후 토큰 (수동 병합 기준 원본)
   //   tokens:    최종 편집 적용 토큰 (표시/다운로드용)
   // ══════════════════════════════════════════════════════
-  function processTokens(text) {
-    // ① 형태소 분석
-    const kuroTokens = tokenizer.tokenize(text);
+  async function processTokens(text) {
+    // ① 형태소 분석 (Web Worker — 비동기)
+    const kuroTokens = await tokenizer.tokenize(text);
 
     // ② 각 토큰 가공 (Kuromoji 원시 토큰 → 앱 토큰 객체)
     const tokens = kuroTokens.map(t => {
@@ -3355,26 +3355,24 @@
     showLoading(true);
     document.getElementById('resultArea').classList.remove('visible');
 
-    // 4. 비동기 처리
-    setTimeout(() => {
-      try {
-        const { rawTokens, tokens: editedTokens } = processTokens(text);
+    // 4. Web Worker 비동기 처리
+    try {
+      const { rawTokens, tokens: editedTokens } = await processTokens(text);
 
-        lastResult = {
-          input:      text,
-          rawTokens,            // 커스텀 자동 병합 적용 후 (수동 병합 기준 원본)
-          tokens:     editedTokens,
-          analyzedAt: new Date().toISOString()
-        };
-        showResult(editedTokens, text);
+      lastResult = {
+        input:      text,
+        rawTokens,            // 커스텀 자동 병합 적용 후 (수동 병합 기준 원본)
+        tokens:     editedTokens,
+        analyzedAt: new Date().toISOString()
+      };
+      showResult(editedTokens, text);
 
-      } catch (err) {
-        showError('분석 중 오류가 발생했습니다: ' + err.message);
-        console.error(err);
-      } finally {
-        showLoading(false);
-      }
-    }, 50);
+    } catch (err) {
+      showError('분석 중 오류가 발생했습니다: ' + err.message);
+      console.error(err);
+    } finally {
+      showLoading(false);
+    }
   }
 
   // ══════════════════════════════════════════════════════
