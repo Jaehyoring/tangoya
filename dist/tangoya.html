@@ -1859,6 +1859,268 @@
     .legend-criteria-badge.visible {
       display: inline-block;
     }
+
+    /* ══════════════════════════════════════════
+       사전 수정 모달 (관리자 전용)
+    ══════════════════════════════════════════ */
+    #dictEditBtn {
+      display: none;
+    }
+
+    body.admin-mode #dictEditBtn {
+      display: inline-flex;
+      color: #ffb400;
+      border-color: rgba(255,180,0,0.4);
+    }
+
+    #dictEditModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 52px;
+    }
+
+    #dictEditModal.visible {
+      display: flex;
+    }
+
+    .dict-edit-box {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid rgba(255,180,0,0.35);
+      border-radius: 16px;
+      padding: 24px 20px 20px;
+      width: min(680px, 96vw);
+      max-height: calc(100vh - 68px);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      animation: slideUp 0.22s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .dict-edit-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .dict-edit-title {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .dict-edit-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+
+    .dict-edit-tab {
+      padding: 4px 13px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .dict-edit-tab:hover {
+      border-color: rgba(255,180,0,0.4);
+      color: var(--text);
+    }
+
+    .dict-edit-tab.active {
+      border-color: rgba(255,180,0,0.7);
+      background: rgba(255,180,0,0.1);
+      color: #ffb400;
+    }
+
+    .dict-edit-search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .dict-edit-search-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Noto Serif JP', serif;
+      padding: 7px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .dict-edit-search-input:focus {
+      border-color: rgba(255,180,0,0.6);
+    }
+
+    .dict-edit-level-filter {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+      padding: 7px 10px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .dict-edit-info {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .dict-edit-list {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 160px;
+    }
+
+    .dict-edit-row {
+      display: grid;
+      grid-template-columns: 120px 90px 44px 1fr 26px;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    .dict-edit-row:last-child {
+      border-bottom: none;
+    }
+
+    .dict-edit-row:hover {
+      background: var(--surface2);
+    }
+
+    .dict-edit-surface {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dict-edit-reading {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dict-edit-lv {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+      border-radius: 4px;
+      padding: 2px 4px;
+    }
+
+    .dict-edit-kr-wrap {
+      min-width: 0;
+    }
+
+    .dict-edit-kr {
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: background 0.12s;
+      display: inline-block;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dict-edit-kr:hover {
+      background: rgba(255,180,0,0.12);
+    }
+
+    .dict-edit-kr.edited {
+      color: #ffb400;
+    }
+
+    .dict-edit-kr.empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 11px;
+    }
+
+    .dict-edit-kr-input {
+      font-size: 12px;
+      font-family: 'Noto Sans KR', sans-serif;
+      color: var(--text);
+      background: rgba(255,180,0,0.07);
+      border: 1.5px solid rgba(255,180,0,0.55);
+      border-radius: 5px;
+      padding: 2px 6px;
+      outline: none;
+      width: 100%;
+    }
+
+    .dict-edit-del-btn {
+      background: none;
+      border: none;
+      color: transparent;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color 0.12s, background 0.12s;
+    }
+
+    .dict-edit-row:hover .dict-edit-del-btn {
+      color: var(--muted);
+    }
+
+    .dict-edit-del-btn:hover {
+      color: #ff4d6d !important;
+      background: rgba(255,77,109,0.1);
+    }
+
+    .dict-edit-empty-msg {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-family: 'Noto Sans KR', sans-serif;
+      line-height: 1.7;
+    }
+
+    .dict-edit-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body>
@@ -1873,6 +2135,7 @@
     <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">📖</button>
     <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋</button>
     <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="편집 데이터 동기화 — 로컬 편집이 있으면 GitHub에 자동 업로드, 없으면 서버에서 최신 데이터를 가져옴">☁</button>
+    <button class="tb-btn" id="dictEditBtn" onclick="openDictEditModal()" title="사전 수정 (관리자 모드)">✏</button>
   </div>
 
   <!-- CSV 레벨 분류기준 업로드 모달 -->
@@ -2026,6 +2289,45 @@
       <div class="custom-words-section">
         <div class="custom-words-header">등록된 단어 (<span id="customWordsCount">0</span>개)</div>
         <div class="custom-words-list" id="customWordsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 사전 수정 모달 (관리자 전용) -->
+  <div id="dictEditModal" role="dialog" aria-modal="true" aria-labelledby="dictEditTitle">
+    <div class="lang-modal-backdrop" onclick="closeDictEditModal()"></div>
+    <div class="dict-edit-box">
+      <div class="dict-edit-header">
+        <span style="font-size:16px">✏</span>
+        <span class="dict-edit-title" id="dictEditTitle">사전 수정</span>
+      </div>
+      <div class="dict-edit-tabs">
+        <button class="dict-edit-tab active" data-tab="all">전체 사전</button>
+        <button class="dict-edit-tab" data-tab="edited">수정된 단어</button>
+        <button class="dict-edit-tab" data-tab="custom">커스텀 단어</button>
+      </div>
+      <div class="dict-edit-search-row">
+        <input type="text" id="dictEditSearch" class="dict-edit-search-input"
+               placeholder="한자 · 읽기 · 뜻으로 검색..." autocomplete="off"
+               oninput="refreshDictEditList()"
+               onkeydown="if(event.key==='Escape')closeDictEditModal()">
+        <select id="dictEditLevelFilter" class="dict-edit-level-filter"
+                onchange="refreshDictEditList()">
+          <option value="">전체 레벨</option>
+          <option value="N5">N5</option>
+          <option value="N4">N4</option>
+          <option value="N3">N3</option>
+          <option value="N2">N2</option>
+          <option value="N1">N1</option>
+          <option value="外">外</option>
+        </select>
+      </div>
+      <div class="dict-edit-info" id="dictEditInfo"></div>
+      <div class="dict-edit-list" id="dictEditList">
+        <div class="dict-edit-empty-msg">검색어를 입력하세요.</div>
+      </div>
+      <div class="dict-edit-footer">
+        <button class="btn-criteria-cancel" onclick="closeDictEditModal()">닫기</button>
       </div>
     </div>
   </div>
@@ -3277,8 +3579,15 @@
     document.body.classList.add('admin-mode');
     const btn = document.getElementById('adminBtn');
     if (btn) { btn.textContent = '🔓'; btn.classList.add('admin-active'); btn.title = '관리자 모드 종료'; }
-    // 현재 결과가 있으면 다시 렌더링
-    if (lastResult) showResult(lastResult.tokens, lastResult.input);
+    if (lastResult) {
+      // kr_edits 재적용: lastResult.tokens가 분석 이후 변경된 경우 대비
+      const krEdits = loadKrEdits();
+      lastResult.tokens.forEach(tk => {
+        const entry = krEdits[tk.baseForm];
+        if (entry !== undefined) tk.korean = getKrEditValue(entry);
+      });
+      showResult(lastResult.tokens, lastResult.input);
+    }
   }
 
   function exitAdminMode() {
@@ -3286,7 +3595,14 @@
     document.body.classList.remove('admin-mode');
     const btn = document.getElementById('adminBtn');
     if (btn) { btn.textContent = '🔒'; btn.classList.remove('admin-active'); btn.title = '관리자 모드'; }
-    if (lastResult) showResult(lastResult.tokens, lastResult.input);
+    if (lastResult) {
+      const krEdits = loadKrEdits();
+      lastResult.tokens.forEach(tk => {
+        const entry = krEdits[tk.baseForm];
+        if (entry !== undefined) tk.korean = getKrEditValue(entry);
+      });
+      showResult(lastResult.tokens, lastResult.input);
+    }
   }
 
   // ══════════════════════════════════════════════════════
@@ -3412,6 +3728,26 @@
         if (surface && confirm(`"${surface}" 를 삭제할까요?`)) {
           deleteCustomWordAndRefresh(surface);
         }
+        return;
+      }
+
+      // ── 사전 수정 모달 ──────────────────────────────────
+      // 탭 전환
+      if (el.classList.contains('dict-edit-tab') && el.dataset.tab) {
+        _dictEditTab = el.dataset.tab;
+        _updateDictTabUI();
+        refreshDictEditList();
+        return;
+      }
+      // 한국어 뜻 span 클릭 → 인라인 편집
+      if (el.classList.contains('dict-edit-kr')) {
+        startDictKrEdit(el);
+        return;
+      }
+      // 수정 삭제 버튼
+      if (el.classList.contains('dict-edit-del-btn')) {
+        const surface = el.dataset.deSurface;
+        if (surface) deleteDictKrEdit(surface);
         return;
       }
     });
@@ -3862,6 +4198,255 @@
     if (field === 'level' || field === 'pos' || field === 'surface' || field === 'baseForm') {
       showResult(lastResult.tokens, lastResult.input);
     }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 사전 수정 모달 — 관리자 전용
+  // ══════════════════════════════════════════════════════
+
+  let _dictEditTab = 'all';       // 현재 탭
+  let _dictEditTimer = null;      // 검색 debounce 타이머
+
+  function openDictEditModal() {
+    if (!isAdminMode) return;
+    const modal = document.getElementById('dictEditModal');
+    if (modal) modal.classList.add('visible');
+    _dictEditTab = 'all';
+    _updateDictTabUI();
+    const search = document.getElementById('dictEditSearch');
+    const filter = document.getElementById('dictEditLevelFilter');
+    if (search) search.value = '';
+    if (filter) filter.value = '';
+    refreshDictEditList();
+    if (search) setTimeout(() => search.focus(), 80);
+  }
+
+  function closeDictEditModal() {
+    const modal = document.getElementById('dictEditModal');
+    if (modal) modal.classList.remove('visible');
+  }
+
+  function _updateDictTabUI() {
+    document.querySelectorAll('.dict-edit-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === _dictEditTab);
+    });
+  }
+
+  /** 검색 debounce (타이핑 중 과도한 렌더 방지) */
+  function refreshDictEditList() {
+    clearTimeout(_dictEditTimer);
+    _dictEditTimer = setTimeout(_renderDictList, 80);
+  }
+
+  function _renderDictList() {
+    const query       = (document.getElementById('dictEditSearch')?.value || '').trim().toLowerCase();
+    const levelFilter = document.getElementById('dictEditLevelFilter')?.value || '';
+    const listEl      = document.getElementById('dictEditList');
+    const infoEl      = document.getElementById('dictEditInfo');
+    if (!listEl) return;
+
+    const krEdits    = loadKrEdits();
+    const customWords = loadCustomWords();
+    const MAX        = 150;
+
+    // ─── 탭별 엔트리 구성 ──────────────────────────────
+    let entries = [];
+
+    if (_dictEditTab === 'edited') {
+      // 수정된 단어 (kr_edits)
+      for (const [baseForm, editEntry] of Object.entries(krEdits)) {
+        const d = JLPT_DICT[baseForm];
+        entries.push({
+          surface: baseForm,
+          reading: d ? d.r : '',
+          level:   d ? d.l : '外',
+          korean:  getKrEditValue(editEntry),
+          edited:  true,
+        });
+      }
+
+    } else if (_dictEditTab === 'custom') {
+      // 커스텀 단어
+      for (const w of customWords) {
+        entries.push({
+          surface: w.surface,
+          reading: w.reading || '',
+          level:   w.level || '外',
+          korean:  w.korean || '-',
+          edited:  false,
+        });
+      }
+
+    } else {
+      // 전체 사전: 검색어/레벨 필터 없으면 검색 유도 메시지 표시
+      if (!query && !levelFilter) {
+        const total = Object.keys(JLPT_DICT).length + customWords.length;
+        listEl.innerHTML = `<div class="dict-edit-empty-msg">
+          검색어를 입력하여 ${total.toLocaleString()}개 단어를 검색하세요.<br>
+          <span style="font-size:11px;opacity:0.7">한자 · 읽기 · 한국어 뜻으로 검색 가능합니다.</span>
+        </div>`;
+        if (infoEl) infoEl.textContent = '';
+        return;
+      }
+      // JLPT_DICT 순회
+      for (const [key, val] of Object.entries(JLPT_DICT)) {
+        const korean = krEdits[key] ? getKrEditValue(krEdits[key]) : val.k;
+        entries.push({
+          surface: key,
+          reading: val.r,
+          level:   val.l,
+          korean,
+          edited: !!krEdits[key],
+        });
+      }
+      // 커스텀 단어도 포함
+      for (const w of customWords) {
+        entries.push({
+          surface: w.surface,
+          reading: w.reading || '',
+          level:   w.level || '外',
+          korean:  w.korean || '-',
+          edited:  false,
+        });
+      }
+    }
+
+    // ─── 필터 적용 ─────────────────────────────────────
+    if (levelFilter) {
+      entries = entries.filter(e => e.level === levelFilter);
+    }
+    if (query) {
+      entries = entries.filter(e =>
+        e.surface.toLowerCase().includes(query) ||
+        e.reading.toLowerCase().includes(query) ||
+        (e.korean && e.korean !== '-' && e.korean.toLowerCase().includes(query))
+      );
+    }
+
+    // ─── 렌더링 ────────────────────────────────────────
+    const total = entries.length;
+    const shown = entries.slice(0, MAX);
+
+    if (infoEl) {
+      infoEl.textContent = `${total.toLocaleString()}개` +
+        (total > MAX ? ` (상위 ${MAX}개 표시)` : '');
+    }
+
+    if (shown.length === 0) {
+      listEl.innerHTML = `<div class="dict-edit-empty-msg">검색 결과가 없습니다.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = shown.map(e => {
+      const lc      = LEVEL_COLOR[e.level] || '#888';
+      const krClass = e.edited ? ' edited' : (e.korean === '-' ? ' empty' : '');
+      const krText  = e.korean === '-' ? '(없음)' : escHtml(e.korean);
+      const delBtn  = e.edited
+        ? `<button class="dict-edit-del-btn"
+               data-de-surface="${escHtml(e.surface)}"
+               title="뜻 수정 삭제">✕</button>`
+        : `<span></span>`;
+      return `
+        <div class="dict-edit-row">
+          <span class="dict-edit-surface">${escHtml(e.surface)}</span>
+          <span class="dict-edit-reading">${escHtml(e.reading)}</span>
+          <span class="dict-edit-lv"
+                style="color:${lc};background:${lc}22;">${escHtml(e.level)}</span>
+          <div class="dict-edit-kr-wrap">
+            <span class="dict-edit-kr${krClass}"
+                  data-de-surface="${escHtml(e.surface)}"
+                  data-de-original="${escHtml(e.korean)}">${krText}</span>
+          </div>
+          ${delBtn}
+        </div>`;
+    }).join('');
+  }
+
+  /** dict-edit 모달에서 한국어 뜻 인라인 편집 시작 */
+  function startDictKrEdit(el) {
+    const surface  = el.dataset.deSurface;
+    const original = el.dataset.deOriginal;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'dict-edit-kr-input';
+    input.value = (original === '-') ? '' : original;
+    input.dataset.deSurface  = surface;
+    input.dataset.deOriginal = original;
+
+    el.replaceWith(input);
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commitDictKrEdit(input); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelDictKrEdit(input); }
+    });
+    let blurTimer = null;
+    input.addEventListener('blur', () => {
+      blurTimer = setTimeout(() => commitDictKrEdit(input), 120);
+    });
+    input._clearBlurTimer = () => clearTimeout(blurTimer);
+  }
+
+  function commitDictKrEdit(input) {
+    if (input._committed) return;
+    input._committed = true;
+    if (input._clearBlurTimer) input._clearBlurTimer();
+
+    const newKorean = input.value.trim();
+    const surface   = input.dataset.deSurface;
+    const original  = input.dataset.deOriginal;
+
+    if (newKorean !== original) {
+      updateKrEdit(surface, newKorean);
+      // lastResult에 즉시 반영
+      if (lastResult) {
+        lastResult.tokens.forEach(t => {
+          if (t.baseForm === surface || t.surface === surface) {
+            t.korean = newKorean || '-';
+          }
+        });
+      }
+    }
+
+    // span 복원
+    const finalText = newKorean || '-';
+    const edited    = isEdited(surface);
+    const span = document.createElement('span');
+    span.className = 'dict-edit-kr' +
+      (edited ? ' edited' : '') +
+      (finalText === '-' ? ' empty' : '');
+    span.textContent = finalText === '-' ? '(없음)' : finalText;
+    span.dataset.deSurface  = surface;
+    span.dataset.deOriginal = finalText;
+    input.replaceWith(span);
+  }
+
+  function cancelDictKrEdit(input) {
+    if (input._committed) return;
+    input._committed = true;
+    if (input._clearBlurTimer) input._clearBlurTimer();
+
+    const original = input.dataset.deOriginal;
+    const surface  = input.dataset.deSurface;
+    const edited   = isEdited(surface);
+
+    const span = document.createElement('span');
+    span.className = 'dict-edit-kr' +
+      (edited ? ' edited' : '') +
+      (original === '-' ? ' empty' : '');
+    span.textContent = original === '-' ? '(없음)' : original;
+    span.dataset.deSurface  = surface;
+    span.dataset.deOriginal = original;
+    input.replaceWith(span);
+  }
+
+  /** 특정 단어의 kr_edit 삭제 */
+  function deleteDictKrEdit(surface) {
+    if (!confirm(`"${surface}"의 한국어 뜻 수정을 삭제할까요?`)) return;
+    updateKrEdit(surface, '');  // 빈 문자열 → updateKrEdit 내부에서 delete 처리
+    refreshDictEditList();
   }
 
   // ══════════════════════════════════════════════════════
