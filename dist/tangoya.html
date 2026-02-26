@@ -1872,7 +1872,7 @@
     <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
     <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">📖</button>
     <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋</button>
-    <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="현재 편집 데이터를 user_data.json으로 내보내기 — dist/ 폴더에 넣고 git push하면 다른 환경에서도 동일하게 표시됩니다">☁</button>
+    <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="편집 데이터 동기화 — 로컬 편집이 있으면 GitHub에 자동 업로드, 없으면 서버에서 최신 데이터를 가져옴">☁</button>
   </div>
 
   <!-- CSV 레벨 분류기준 업로드 모달 -->
@@ -2716,7 +2716,28 @@
   }
 
   /** 현재 모든 편집 데이터를 user_data.json 형식으로 내보내기 */
-  function exportUserData() {
+  const GITHUB_TOKEN_KEY = 'tangoya_github_token';
+
+  /** ☁ 버튼: 로컬 편집이 있으면 GitHub에 업로드, 없으면 서버에서 가져와 재적용 */
+  async function exportUserData() {
+    const hasLocal = (
+      Object.keys(loadKrEdits()).length > 0 ||
+      loadCustomWords().length > 0 ||
+      Object.keys(loadAdminEdits()).length > 0 ||
+      Object.keys(loadMergeRules()).length > 0
+    );
+
+    if (!hasLocal) {
+      // Device B: 서버 데이터 재fetch 후 재렌더
+      await loadAndApplyServerData();
+      applyStoredEdits();
+      applyCustomWords();
+      if (lastResult) showResult(lastResult.tokens, lastResult.input);
+      flashSyncBtn('↓');
+      return;
+    }
+
+    // Device A: 로컬 데이터를 GitHub에 업로드
     const data = {
       exported:        new Date().toISOString().slice(0, 10),
       kr_edits:        loadKrEdits(),
@@ -2725,7 +2746,74 @@
       merge_rules:     loadMergeRules(),
       custom_criteria: criteriaStore.load(),
     };
-    downloadFile(JSON.stringify(data, null, 2), 'user_data.json', 'application/json');
+
+    let token = localStorage.getItem(GITHUB_TOKEN_KEY);
+    if (!token) {
+      token = prompt(
+        'GitHub Personal Access Token을 입력하세요.\n' +
+        '(Settings → Developer settings → Fine-grained tokens → Contents: Read and Write)\n' +
+        '입력한 토큰은 이 브라우저에만 저장됩니다.'
+      );
+      if (!token) return;
+      localStorage.setItem(GITHUB_TOKEN_KEY, token.trim());
+    }
+    await uploadToGitHub(data, token.trim());
+  }
+
+  /** GitHub Contents API로 dist/user_data.json 업로드 */
+  async function uploadToGitHub(data, token) {
+    const apiUrl = 'https://api.github.com/repos/Jaehyoring/tangoya/contents/dist/user_data.json';
+    try {
+      // 현재 파일 SHA 조회 (업데이트 시 필수)
+      const getResp = await fetch(apiUrl, {
+        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      const fileInfo = getResp.ok ? await getResp.json() : null;
+      const sha = fileInfo ? fileInfo.sha : undefined;
+
+      // UTF-8 → Base64 변환 (한글 포함)
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+
+      const putResp = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'token ' + token,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: 'sync: user_data ' + data.exported,
+          content,
+          ...(sha && { sha }),
+        }),
+      });
+
+      if (putResp.ok) {
+        flashSyncBtn('✓');
+      } else {
+        const err = await putResp.json();
+        if (putResp.status === 401 || putResp.status === 403) {
+          localStorage.removeItem(GITHUB_TOKEN_KEY);
+          alert('토큰 인증 실패. 다음에 다시 입력해 주세요.\n' + (err.message || ''));
+        } else {
+          alert('업로드 실패 (' + putResp.status + '): ' + (err.message || ''));
+        }
+        downloadFile(JSON.stringify(data, null, 2), 'user_data.json', 'application/json');
+      }
+    } catch(e) {
+      alert('GitHub 연결 오류: ' + e.message);
+      downloadFile(JSON.stringify(data, null, 2), 'user_data.json', 'application/json');
+    }
+  }
+
+  /** 동기화 버튼에 짧은 피드백 표시 */
+  function flashSyncBtn(symbol) {
+    const btn = document.getElementById('syncBtn');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = symbol;
+    btn.style.color = symbol === '✓' ? '#00e676' : '#40c4ff';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
   }
 
   // ══════════════════════════════════════════════════════
