@@ -1864,6 +1864,7 @@
     <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
     <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">⬇ 사전</button>
     <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋 기준</button>
+    <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="현재 편집 데이터를 user_data.json으로 내보내기 — dist/ 폴더에 넣고 git push하면 다른 환경에서도 동일하게 표시됩니다">☁ 동기화</button>
   </div>
 
   <!-- CSV 레벨 분류기준 업로드 모달 -->
@@ -2210,6 +2211,7 @@
       const dictResp = await fetch('jlpt_dict.json');
       if (!dictResp.ok) throw new Error('jlpt_dict.json 로드 실패: ' + dictResp.status);
       Object.assign(JLPT_DICT, await dictResp.json());
+      await loadAndApplyServerData();  // 서버 데이터 동기화 (user_data.json)
       applyStoredEdits();    // 한국어 뜻 사용자 편집 반영
       applyCustomWords();    // 커스텀 단어 반영
       applyStoredCriteria(); // 분류기준 반영
@@ -2658,6 +2660,64 @@
   function isEdited(baseForm) {
     const edits = loadKrEdits();
     return Object.prototype.hasOwnProperty.call(edits, baseForm);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 서버 데이터 동기화 — user_data.json
+  // ══════════════════════════════════════════════════════
+
+  /**
+   * user_data.json을 서버에서 불러와 localStorage에 병합.
+   * 서버 데이터가 우선 적용되어 다른 환경에서도 최신 편집 내용이 표시됨.
+   */
+  async function loadAndApplyServerData() {
+    try {
+      const resp = await fetch('user_data.json?_=' + Date.now());
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      // kr_edits: 서버 우선 병합
+      if (data.kr_edits && typeof data.kr_edits === 'object') {
+        const merged = Object.assign({}, loadKrEdits(), data.kr_edits);
+        saveKrEdits(merged);
+      }
+      // custom_words: 서버 항목 우선 (surface 기준)
+      if (Array.isArray(data.custom_words) && data.custom_words.length > 0) {
+        const serverMap = {};
+        data.custom_words.forEach(w => { serverMap[w.surface] = w; });
+        const localOnly = loadCustomWords().filter(w => !serverMap[w.surface]);
+        saveCustomWords([...localOnly, ...data.custom_words]);
+      }
+      // admin_edits: 서버 우선 병합
+      if (data.admin_edits && typeof data.admin_edits === 'object') {
+        adminEditsStore.save(Object.assign({}, loadAdminEdits(), data.admin_edits));
+      }
+      // merge_rules: 서버 우선 병합
+      if (data.merge_rules && typeof data.merge_rules === 'object') {
+        saveMergeRules(Object.assign({}, loadMergeRules(), data.merge_rules));
+      }
+      // custom_criteria: 서버 우선
+      if (data.custom_criteria) {
+        criteriaStore.save(data.custom_criteria);
+      }
+      console.log('user_data.json 동기화 완료');
+    } catch(e) {
+      // 파일 없거나 네트워크 오류 — 정상 무시
+      console.log('user_data.json 로드 생략:', e.message);
+    }
+  }
+
+  /** 현재 모든 편집 데이터를 user_data.json 형식으로 내보내기 */
+  function exportUserData() {
+    const data = {
+      exported:        new Date().toISOString().slice(0, 10),
+      kr_edits:        loadKrEdits(),
+      custom_words:    loadCustomWords(),
+      admin_edits:     loadAdminEdits(),
+      merge_rules:     loadMergeRules(),
+      custom_criteria: criteriaStore.load(),
+    };
+    downloadFile(JSON.stringify(data, null, 2), 'user_data.json', 'application/json');
   }
 
   // ══════════════════════════════════════════════════════
