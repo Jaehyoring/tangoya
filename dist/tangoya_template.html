@@ -1553,6 +1553,14 @@
       display: flex;
     }
 
+    #syncBtn {
+      display: none;
+    }
+
+    body.admin-mode #syncBtn {
+      display: flex;
+    }
+
     #criteriaBtn:hover {
       background: rgba(96,160,255,0.18) !important;
       border-color: rgba(96,160,255,0.7) !important;
@@ -1864,7 +1872,7 @@
     <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
     <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">⬇ 사전</button>
     <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋 기준</button>
-    <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="현재 편집 데이터를 user_data.json으로 내보내기 — dist/ 폴더에 넣고 git push하면 다른 환경에서도 동일하게 표시됩니다">☁ 동기화</button>
+    <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="현재 편집 데이터를 user_data.json으로 내보내기 — dist/ 폴더에 넣고 git push하면 다른 환경에서도 동일하게 표시됩니다">☁</button>
   </div>
 
   <!-- CSV 레벨 분류기준 업로드 모달 -->
