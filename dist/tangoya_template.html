@@ -2731,6 +2731,12 @@
       if (data.custom_criteria) {
         criteriaStore.save(data.custom_criteria);
       }
+      // dict_updated: 사전 갱신일 반영
+      if (data.dict_updated && data.dict_updated !== '-') {
+        localStorage.setItem(DICT_UPDATED_KEY, data.dict_updated);
+        const footerEl = document.getElementById('footerDictUpdated');
+        if (footerEl) footerEl.textContent = data.dict_updated;
+      }
       console.log('user_data.json 동기화 완료 (exported:', data.exported, ')');
     } catch(e) {
       // 파일 없거나 네트워크 오류 — 정상 무시
@@ -2763,6 +2769,7 @@
     // Device A: 로컬 데이터를 GitHub에 업로드
     const data = {
       exported:        new Date().toISOString().slice(0, 10),
+      dict_updated:    getDictUpdated(),
       kr_edits:        loadKrEdits(),
       custom_words:    loadCustomWords(),
       admin_edits:     loadAdminEdits(),
@@ -2778,7 +2785,7 @@
         '입력한 토큰은 이 브라우저에만 저장됩니다.'
       );
       if (!token) return;
-      localStorage.setItem(GITHUB_TOKEN_KEY, token.trim());
+      // 토큰은 업로드 성공 후에만 저장 (uploadToGitHub 내부에서 처리)
     }
     await uploadToGitHub(data, token.trim());
   }
@@ -2787,14 +2794,14 @@
   async function uploadToGitHub(data, token) {
     const apiUrl = 'https://api.github.com/repos/Jaehyoring/tangoya/contents/dist/user_data.json';
     try {
-      // 현재 파일 SHA 조회 (업데이트 시 필수)
+      // SHA 조회: 공개 레포이므로 인증 없이 GET (토큰 권한 문제 회피)
       const getResp = await fetch(apiUrl, {
-        headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
       });
       const fileInfo = getResp.ok ? await getResp.json() : null;
       const sha = fileInfo ? fileInfo.sha : undefined;
 
-      // UTF-8 → Base64 변환 (한글 포함)
+      // UTF-8 → Base64 변환 (한글/일본어 포함)
       const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
 
       const putResp = await fetch(apiUrl, {
@@ -2812,6 +2819,8 @@
       });
 
       if (putResp.ok) {
+        // 업로드 성공 시에만 토큰 저장
+        localStorage.setItem(GITHUB_TOKEN_KEY, token);
         flashSyncBtn('✓');
       } else {
         const err = await putResp.json();
