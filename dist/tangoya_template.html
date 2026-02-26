@@ -2678,11 +2678,34 @@
    * user_data.json을 서버에서 불러와 localStorage에 병합.
    * 서버 데이터가 우선 적용되어 다른 환경에서도 최신 편집 내용이 표시됨.
    */
+  // raw.githubusercontent.com: GitHub Pages CDN을 거치지 않아 커밋 즉시 최신 데이터 반환
+  const RAW_USER_DATA_URL =
+    'https://raw.githubusercontent.com/Jaehyoring/tangoya/main/dist/user_data.json';
+
   async function loadAndApplyServerData() {
     try {
-      const resp = await fetch('user_data.json?_=' + Date.now());
-      if (!resp.ok) return;
-      const data = await resp.json();
+      // 1차: raw.githubusercontent.com (커밋 즉시 반영, CDN 캐시 없음)
+      let data = null;
+      try {
+        const rawResp = await fetch(RAW_USER_DATA_URL + '?_=' + Date.now());
+        if (rawResp.ok) data = await rawResp.json();
+      } catch(e) { /* 네트워크 오류 시 로컬 fallback */ }
+
+      // 2차 fallback: 동일 서버 user_data.json
+      if (!data) {
+        const localResp = await fetch('user_data.json?_=' + Date.now());
+        if (!localResp.ok) return;
+        data = await localResp.json();
+      }
+
+      const hasData = (
+        (data.kr_edits        && Object.keys(data.kr_edits).length > 0) ||
+        (data.custom_words    && data.custom_words.length > 0) ||
+        (data.admin_edits     && Object.keys(data.admin_edits).length > 0) ||
+        (data.merge_rules     && Object.keys(data.merge_rules).length > 0) ||
+        data.custom_criteria
+      );
+      if (!hasData) return;  // 빈 파일이면 아무것도 하지 않음
 
       // kr_edits: 서버 우선 병합
       if (data.kr_edits && typeof data.kr_edits === 'object') {
@@ -2708,7 +2731,7 @@
       if (data.custom_criteria) {
         criteriaStore.save(data.custom_criteria);
       }
-      console.log('user_data.json 동기화 완료');
+      console.log('user_data.json 동기화 완료 (exported:', data.exported, ')');
     } catch(e) {
       // 파일 없거나 네트워크 오류 — 정상 무시
       console.log('user_data.json 로드 생략:', e.message);
