@@ -2714,28 +2714,56 @@
       );
       if (!hasData) return;  // 빈 파일이면 아무것도 하지 않음
 
-      // kr_edits: 서버 우선 병합
+      // kr_edits: 날짜 기반 병합 — 최신 항목 우선, 동일 날짜면 로컬 우선
       if (data.kr_edits && typeof data.kr_edits === 'object') {
-        const merged = Object.assign({}, loadKrEdits(), data.kr_edits);
+        const local = loadKrEdits();
+        const merged = Object.assign({}, local);
+        for (const [key, serverEntry] of Object.entries(data.kr_edits)) {
+          if (!merged[key]) {
+            merged[key] = serverEntry;  // 서버에만 있는 항목 추가
+          } else {
+            const localDate  = (merged[key].d  || '0000-00-00');
+            const serverDate = (serverEntry.d  || '0000-00-00');
+            if (serverDate > localDate) merged[key] = serverEntry;  // 서버가 더 최신
+            // 로컬이 같거나 더 최신이면 로컬 유지 (편집 손실 방지)
+          }
+        }
         saveKrEdits(merged);
       }
-      // custom_words: 서버 항목 우선 (surface 기준)
+      // custom_words: 날짜 기반 병합 (surface 기준)
       if (Array.isArray(data.custom_words) && data.custom_words.length > 0) {
+        const localWords = loadCustomWords();
+        const localMap = {};
+        localWords.forEach(w => { localMap[w.surface] = w; });
         const serverMap = {};
         data.custom_words.forEach(w => { serverMap[w.surface] = w; });
-        const localOnly = loadCustomWords().filter(w => !serverMap[w.surface]);
-        saveCustomWords([...localOnly, ...data.custom_words]);
+        // 로컬에만 있는 단어 + 날짜 비교로 더 최신인 항목 선택
+        const merged = [];
+        const allSurfaces = new Set([...Object.keys(localMap), ...Object.keys(serverMap)]);
+        allSurfaces.forEach(surface => {
+          const lw = localMap[surface];
+          const sw = serverMap[surface];
+          if (!sw) { merged.push(lw); }
+          else if (!lw) { merged.push(sw); }
+          else {
+            const ld = lw.d || '0000-00-00';
+            const sd = sw.d || '0000-00-00';
+            merged.push(sd > ld ? sw : lw);  // 더 최신 항목 선택, 같으면 로컬
+          }
+        });
+        saveCustomWords(merged);
       }
-      // admin_edits: 서버 우선 병합
+      // admin_edits: 로컬 우선 병합 (서버에만 있는 키 추가)
       if (data.admin_edits && typeof data.admin_edits === 'object') {
-        adminEditsStore.save(Object.assign({}, loadAdminEdits(), data.admin_edits));
+        const localAdm = loadAdminEdits();
+        adminEditsStore.save(Object.assign({}, data.admin_edits, localAdm));
       }
-      // merge_rules: 서버 우선 병합
+      // merge_rules: 로컬 우선 병합 (서버에만 있는 키 추가)
       if (data.merge_rules && typeof data.merge_rules === 'object') {
-        saveMergeRules(Object.assign({}, loadMergeRules(), data.merge_rules));
+        saveMergeRules(Object.assign({}, data.merge_rules, loadMergeRules()));
       }
-      // custom_criteria: 서버 우선
-      if (data.custom_criteria) {
+      // custom_criteria: 로컬에 없으면 서버 데이터 사용
+      if (data.custom_criteria && !criteriaStore.load()) {
         criteriaStore.save(data.custom_criteria);
       }
       // dict_updated: 사전 갱신일 반영
