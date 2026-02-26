@@ -2678,18 +2678,25 @@
    * user_data.json을 서버에서 불러와 localStorage에 병합.
    * 서버 데이터가 우선 적용되어 다른 환경에서도 최신 편집 내용이 표시됨.
    */
-  // raw.githubusercontent.com: GitHub Pages CDN을 거치지 않아 커밋 즉시 최신 데이터 반환
-  const RAW_USER_DATA_URL =
-    'https://raw.githubusercontent.com/Jaehyoring/tangoya/main/dist/user_data.json';
+  // GitHub Contents API: CDN 캐시 없이 커밋 즉시 최신 파일 반환 (인증 불필요, 공개 레포)
+  const GH_CONTENTS_API_URL =
+    'https://api.github.com/repos/Jaehyoring/tangoya/contents/dist/user_data.json';
 
   async function loadAndApplyServerData() {
     try {
-      // 1차: raw.githubusercontent.com (커밋 즉시 반영, CDN 캐시 없음)
+      // 1차: GitHub Contents API (항상 최신, CDN 캐시 없음)
       let data = null;
       try {
-        const rawResp = await fetch(RAW_USER_DATA_URL + '?_=' + Date.now());
-        if (rawResp.ok) data = await rawResp.json();
-      } catch(e) { /* 네트워크 오류 시 로컬 fallback */ }
+        const apiResp = await fetch(GH_CONTENTS_API_URL, {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (apiResp.ok) {
+          const fileInfo = await apiResp.json();
+          // base64 디코딩 (한글/일본어 포함)
+          const jsonStr = decodeURIComponent(escape(atob(fileInfo.content.replace(/\n/g, ''))));
+          data = JSON.parse(jsonStr);
+        }
+      } catch(e) { /* API 실패 시 로컬 fallback */ }
 
       // 2차 fallback: 동일 서버 user_data.json
       if (!data) {
