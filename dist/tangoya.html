@@ -1937,6 +1937,65 @@
       display: flex;
     }
 
+    /* ══════════════════════════════════════════
+       사전 CSV 다운로드 진행 모달
+       ══════════════════════════════════════════ */
+    #dictDlModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(2px);
+    }
+    #dictDlModal.visible { display: flex; }
+
+    .dict-dl-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      width: 420px;
+      max-width: 92vw;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      animation: slideUp 0.22s ease;
+    }
+    .dict-dl-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .dict-dl-body { display: flex; flex-direction: column; gap: 12px; }
+    .dict-dl-status { font-size: 13px; color: var(--text); font-weight: 500; }
+    .dict-dl-progress-wrap {
+      background: var(--surface2);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .dict-dl-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #40c4ff 0%, #00e676 100%);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .dict-dl-detail {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      line-height: 1.6;
+    }
+    .dict-dl-footer { display: flex; justify-content: flex-end; }
+
     .dict-edit-box {
       position: relative;
       background: var(--surface);
@@ -2182,7 +2241,7 @@
     <button class="tb-btn" id="themeBtn" onclick="toggleTheme()" title="라이트/다크 모드 전환">🌙</button>
     <button class="tb-btn" id="wordAddBtn" onclick="openWordAddModal()" title="단어 추가">＋</button>
     <button class="tb-btn" id="adminBtn" onclick="openAdminModal()" title="관리자 모드">🔒</button>
-    <button class="tb-btn" id="dictDownloadBtn" onclick="downloadDictCSV()" title="전체 사전 CSV 다운로드">📖</button>
+    <button class="tb-btn" id="dictDownloadBtn" onclick="openDictDlModal()" title="전체 사전 CSV 다운로드 (한국어 뜻 구글 번역 적용)">📖</button>
     <button class="tb-btn" id="criteriaBtn" onclick="openCriteriaModal()" title="레벨 분류 기준 CSV 업로드">📋</button>
     <button class="tb-btn" id="syncBtn" onclick="exportUserData()" title="편집 데이터 동기화 — 로컬 편집이 있으면 GitHub에 자동 업로드, 없으면 서버에서 최신 데이터를 가져옴">☁</button>
     <button class="tb-btn" id="dictEditBtn" onclick="openDictEditModal()" title="사전 수정 (관리자 모드)">✏</button>
@@ -2495,6 +2554,26 @@
   </footer>
 
 </div><!-- /.container -->
+
+<!-- 사전 CSV 다운로드 진행 모달 -->
+<div id="dictDlModal" role="dialog" aria-modal="true" aria-labelledby="dictDlTitle">
+  <div class="dict-dl-box">
+    <div class="dict-dl-header">
+      <span style="font-size:20px">📥</span>
+      <span id="dictDlTitle">사전 CSV 다운로드</span>
+    </div>
+    <div class="dict-dl-body">
+      <div class="dict-dl-status" id="dictDlStatus">준비 중…</div>
+      <div class="dict-dl-progress-wrap">
+        <div class="dict-dl-bar" id="dictDlBar"></div>
+      </div>
+      <div class="dict-dl-detail" id="dictDlDetail"></div>
+    </div>
+    <div class="dict-dl-footer">
+      <button class="btn-criteria-cancel" id="dictDlCancelBtn" onclick="closeDictDlModal()">취소</button>
+    </div>
+  </div>
+</div>
 
 <!-- 한국어 입력 경고 모달 -->
 <div id="langModal" role="dialog" aria-modal="true" aria-labelledby="langModalTitle">
@@ -4657,91 +4736,170 @@
     downloadFile(content, 'tangoya_result.txt', 'text/plain');
   }
 
-  // ── downloadDictCSV (관리자 전용: 전체 사전 CSV) ──────
-  function downloadDictCSV() {
-    const krEdits     = loadKrEdits();       // { baseForm: korean }
-    const customWords = loadCustomWords();   // [ {surface, reading, level, pos, korean} ]
+  // ══════════════════════════════════════════════════════
+  // 사전 CSV 다운로드 — Google 번역 보완 + 진행 모달
+  // ══════════════════════════════════════════════════════
 
-    // ① JLPT_DICT 전체를 행으로 변환
-    //    히라가나/가타카나 전용 키(표층형 = 읽기)는 한자 키와 중복이므로 스킵
-    const rows = [];
-    const seen = new Set(); // 중복 제거용 (surface 기준)
+  let _dictDlCancelled = false;
 
-    // 레벨 정렬 순서
+  /** 다운로드 진행 모달 열기 → 비동기 프로세스 시작 */
+  function openDictDlModal() {
+    if (!isAdminMode) return;
+    _dictDlCancelled = false;
+    document.getElementById('dictDlStatus').textContent  = '준비 중…';
+    document.getElementById('dictDlBar').style.width     = '0%';
+    document.getElementById('dictDlDetail').textContent  = '';
+    const cancelBtn = document.getElementById('dictDlCancelBtn');
+    cancelBtn.textContent = '취소';
+    cancelBtn.disabled    = false;
+    document.getElementById('dictDlModal').classList.add('visible');
+    runDictDownload();   // 비동기 시작 (await 없이)
+  }
+
+  /** 모달 닫기 / 취소 */
+  function closeDictDlModal() {
+    _dictDlCancelled = true;
+    document.getElementById('dictDlModal').classList.remove('visible');
+  }
+
+  /** 상태 바 갱신 헬퍼 */
+  function _dictDlSetProgress(msg, pct) {
+    document.getElementById('dictDlStatus').textContent  = msg;
+    document.getElementById('dictDlBar').style.width     = Math.min(pct, 100) + '%';
+  }
+
+  /**
+   * JLPT_DICT + customWords → 중복 없는 행 배열
+   * · surface === entry.r 인 히라가나 중복 키 스킵
+   * · krEdits 한국어뜻 우선 적용
+   */
+  function _dictBuildRows() {
+    const krEdits     = loadKrEdits();
+    const customWords = loadCustomWords();
     const LEVEL_ORDER = { N5:1, N4:2, N3:3, N2:4, N1:5, '外':6, '文法':7 };
+    const rows = [];
+    const seen = new Set();
 
     for (const [surface, entry] of Object.entries(JLPT_DICT)) {
-      // 히라가나·가타카나 전용 키는 스킵 (이미 한자 키로 등록되어 있음)
-      if (surface === entry.r) continue;
+      if (surface === entry.r) continue;   // 히라가나 중복 키 스킵
       if (seen.has(surface)) continue;
       seen.add(surface);
 
-      // krEdits로 한국어뜻 덮어씀 (형식: { k, d } 또는 구버전 string)
-      const krEntryS  = krEdits[surface];
-      const krEntryR  = krEdits[entry.r];
-      const krEntry   = krEntryS !== undefined ? krEntryS : krEntryR;
-      const korean    = krEntry !== undefined ? getKrEditValue(krEntry) : entry.k;
-      const isKrEdited = krEntry !== undefined;
-      const source = isKrEdited ? '수정' : '기본';
-      // 수정일: krEdits의 d 필드, 없으면 '-'
-      const date   = isKrEdited ? (krEntry.d || '-') : '-';
+      const krEntryS = krEdits[surface];
+      const krEntryR = krEdits[entry.r];
+      const krEntry  = krEntryS !== undefined ? krEntryS : krEntryR;
+      const korean   = krEntry !== undefined ? getKrEditValue(krEntry) : entry.k;
 
       rows.push({
         surface,
         reading: entry.r || '',
         level:   entry.l,
         korean:  korean || '-',
-        source,
-        date,
         _rank:   LEVEL_ORDER[entry.l] ?? 9
       });
     }
 
-    // ② 커스텀 단어 추가 (source = '추가')
+    // 커스텀 단어 추가 / 덮어쓰기
     customWords.forEach(w => {
-      if (seen.has(w.surface)) {
-        // 기존 기본 사전 항목을 커스텀이 덮어쓴 경우 → source를 '추가'로 업데이트
-        const existing = rows.find(r => r.surface === w.surface);
-        if (existing) {
-          existing.reading = w.reading;
-          existing.level   = w.level;
-          existing.korean  = w.korean || '-';
-          existing.source  = '추가';
-          existing.date    = w.d || '-';
-          existing._rank   = LEVEL_ORDER[w.level] ?? 9;
-        }
-        return;
+      const existing = rows.find(r => r.surface === w.surface);
+      if (existing) {
+        existing.reading = w.reading || existing.reading;
+        existing.level   = w.level   || existing.level;
+        existing.korean  = w.korean  || existing.korean;
+        existing._rank   = LEVEL_ORDER[w.level] ?? 9;
+      } else {
+        seen.add(w.surface);
+        rows.push({
+          surface: w.surface,
+          reading: w.reading || '',
+          level:   w.level   || '外',
+          korean:  w.korean  || '-',
+          _rank:   LEVEL_ORDER[w.level] ?? 9
+        });
       }
-      seen.add(w.surface);
-      rows.push({
-        surface: w.surface,
-        reading: w.reading,
-        level:   w.level,
-        korean:  w.korean || '-',
-        source:  '추가',
-        date:    w.d || '-',
-        _rank:   LEVEL_ORDER[w.level] ?? 9
-      });
     });
 
-    // ③ 레벨 순 → surface 가나다 순 정렬
-    rows.sort((a, b) => {
-      if (a._rank !== b._rank) return a._rank - b._rank;
-      return a.surface.localeCompare(b.surface, 'ja');
-    });
-
-    // ④ CSV 생성
-    const q = v => '"' + String(v === undefined || v === null ? '' : v)
-                         .replace(/"/g, '""') + '"';
-
-    const header = '표층형,읽기,JLPT레벨,한국어뜻,출처,등록·수정일';
-    const csvRows = rows.map(r =>
-      [r.surface, r.reading, r.level, r.korean, r.source, r.date].map(q).join(',')
+    // 레벨 순 → surface 가나다 순 정렬
+    rows.sort((a, b) =>
+      a._rank !== b._rank
+        ? a._rank - b._rank
+        : a.surface.localeCompare(b.surface, 'ja')
     );
+    return rows;
+  }
 
+  /**
+   * 30개 단어를 \n으로 묶어 Google 번역 (ja → ko)
+   * data[0] 배열의 각 조각을 합산 후 \n 분리
+   */
+  async function _dictTranslateBatch(batch) {
+    const text = batch.map(w => w.surface).join('\n');
+    try {
+      const url = 'https://translate.googleapis.com/translate_a/single'
+        + '?client=gtx&sl=ja&tl=ko&dt=t&q=' + encodeURIComponent(text);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      const fullTl = data[0].map(c => c[0]).join('');
+      const parts  = fullTl.split('\n');
+      batch.forEach((w, i) => {
+        const t = (parts[i] || '').trim();
+        if (t) w.korean = t;
+      });
+    } catch (e) {
+      console.warn('[_dictTranslateBatch]', e);
+    }
+  }
+
+  /** 메인 다운로드 프로세스 (openDictDlModal에서 호출) */
+  async function runDictDownload() {
+    const BATCH = 30;
+
+    // ① 단어 수집
+    _dictDlSetProgress('단어 수집 중…', 2);
+    const rows = _dictBuildRows();
+    if (_dictDlCancelled) return;
+
+    // ② 번역 필요 행 파악
+    const toTl    = rows.filter(r => !r.korean || r.korean === '-');
+    const totalTl = toTl.length;
+    document.getElementById('dictDlDetail').textContent =
+      `총 ${rows.length.toLocaleString()}개 단어 · 번역 필요: ${totalTl.toLocaleString()}개\n`
+      + '(한국어 뜻이 없는 단어를 Google 번역으로 자동 보완합니다)';
+
+    await new Promise(r => setTimeout(r, 200)); // UI 반영 대기
+
+    // ③ 배치 번역
+    for (let i = 0; i < toTl.length; i += BATCH) {
+      if (_dictDlCancelled) return;
+      await _dictTranslateBatch(toTl.slice(i, i + BATCH));
+      const done = Math.min(i + BATCH, totalTl);
+      _dictDlSetProgress(
+        `번역 중… ${done.toLocaleString()} / ${totalTl.toLocaleString()}`,
+        Math.round(done / totalTl * 90)
+      );
+      await new Promise(r => setTimeout(r, 120));
+    }
+    if (_dictDlCancelled) return;
+
+    // ④ CSV 생성 & 다운로드
+    _dictDlSetProgress('CSV 생성 중…', 95);
+    const q = v => '"' + String(v === '-' ? '' : (v ?? '')).replace(/"/g, '""') + '"';
+    const header  = '한자표기,읽기(히라가나),JLPT레벨,한국어뜻';
+    const csvRows = rows.map(r =>
+      [r.surface, r.reading, r.level, r.korean].map(q).join(',')
+    );
     const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
     downloadFile(header + '\n' + csvRows.join('\n'),
                  `tangoya_dict_${today}.csv`, 'text/csv');
+
+    // ⑤ 완료
+    _dictDlSetProgress('완료! 다운로드 중…', 100);
+    document.getElementById('dictDlDetail').textContent =
+      `${rows.length.toLocaleString()}개 단어 · Google 번역 보완: ${totalTl.toLocaleString()}개`;
+    const cancelBtn = document.getElementById('dictDlCancelBtn');
+    cancelBtn.textContent = '닫기';
+    setTimeout(() => { if (!_dictDlCancelled) closeDictDlModal(); }, 2000);
   }
 
   // ══════════════════════════════════════════════════════
