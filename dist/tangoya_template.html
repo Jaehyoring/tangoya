@@ -4823,7 +4823,7 @@
 
   /** 메인 다운로드 프로세스 (openDictDlModal에서 호출) */
   async function runDictDownload() {
-    const BATCH = 300;   // Kuromoji 동기 처리: 300개씩 묶어 UI 스레드 양보
+    const BATCH = 500;   // 500단어씩 \n 연결 → tokenize 1회 호출 (호출 횟수 최소화)
 
     // ① 단어 수집
     _dictDlSetProgress('단어 수집 중…', 2);
@@ -4834,19 +4834,34 @@
       `총 ${rows.length.toLocaleString()}개 단어 · 품사 분석 중…`;
     await new Promise(r => setTimeout(r, 100));
 
-    // ② Kuromoji 품사 분석 (배치: UI 블로킹 방지)
+    // ② Kuromoji 품사 분석
+    //    단어를 \n으로 연결 → await tokenize() 1회 → \n 토큰 경계로 품사 추출
+    //    (tokenize()는 Promise를 반환하므로 반드시 await 필요)
     if (tokenizer) {
       for (let i = 0; i < rows.length; i += BATCH) {
         if (_dictDlCancelled) return;
         const batch = rows.slice(i, i + BATCH);
-        for (const row of batch) {
-          try {
-            const tokens = tokenizer.tokenize(row.surface);
-            row.pos = (tokens && tokens[0]) ? (tokens[0].pos || '') : '';
-          } catch (e) {
-            row.pos = '';
+
+        // BATCH개 단어를 줄바꿈으로 연결 → tokenize 1회 호출
+        const joinedText = batch.map(r => r.surface).join('\n');
+        let allTokens = [];
+        try {
+          allTokens = await tokenizer.tokenize(joinedText);
+        } catch (e) { allTokens = []; }
+
+        // \n 토큰을 경계로 각 단어의 첫 번째 실질 토큰 품사 추출
+        let wi = 0, fresh = true;
+        for (const tok of allTokens) {
+          if (!tok) continue;
+          if (tok.surface_form === '\n') {
+            wi++;
+            fresh = true;
+          } else if (fresh && wi < batch.length) {
+            batch[wi].pos = (tok.pos && tok.pos !== '*') ? tok.pos : '';
+            fresh = false;
           }
         }
+
         const done = Math.min(i + BATCH, rows.length);
         _dictDlSetProgress(
           `품사 분석 중… ${done.toLocaleString()} / ${rows.length.toLocaleString()}`,
