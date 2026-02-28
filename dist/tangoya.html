@@ -4835,32 +4835,53 @@
     await new Promise(r => setTimeout(r, 100));
 
     // ② Kuromoji 품사 분석
-    //    단어를 \n으로 연결 → await tokenize() 1회 → \n 토큰 경계로 품사 추출
-    //    (tokenize()는 Promise를 반환하므로 반드시 await 필요)
+    //    · 문제1: お兄さん → お(接頭詞)+兄さん(名詞) → 接頭詞·記号 건너뛰어 실질 품사 추출
+    //    · 문제2: そら·空 → そら(感動詞)+·+空(名詞) → · 앞 히라가나는 중의적
+    //             → ·/・ 포함 단어는 한자 세그먼트(뒷 부분)만 tokenize
     if (tokenizer) {
+      // 接頭詞(お·ご 등 접두사)·記号(·,。등 기호)는 실질 품사로 사용하지 않음
+      const SKIP_POS = new Set(['接頭詞', '記号']);
+
+      // 토큰 그룹에서 SKIP_POS를 제외한 첫 실질 품사 반환
+      const extractPos = toks => {
+        for (const t of toks) {
+          if (t.pos && t.pos !== '*' && !SKIP_POS.has(t.pos)) return t.pos;
+        }
+        // fallback: 건너뛸 토큰밖에 없으면 첫 번째 토큰 품사 사용
+        return (toks[0] && toks[0].pos && toks[0].pos !== '*') ? toks[0].pos : '';
+      };
+
       for (let i = 0; i < rows.length; i += BATCH) {
         if (_dictDlCancelled) return;
         const batch = rows.slice(i, i + BATCH);
 
-        // BATCH개 단어를 줄바꿈으로 연결 → tokenize 1회 호출
-        const joinedText = batch.map(r => r.surface).join('\n');
+        // ·/・ 포함 단어는 마지막 세그먼트(한자 형태)만 tokenize 대상으로 사용
+        const surfaces = batch.map(r =>
+          (r.surface.includes('·') || r.surface.includes('・'))
+            ? r.surface.split(/[·・]/).pop().trim()
+            : r.surface
+        );
+
+        // BATCH개 단어를 \n으로 연결 → tokenize 1회 호출
         let allTokens = [];
         try {
-          allTokens = await tokenizer.tokenize(joinedText);
+          allTokens = await tokenizer.tokenize(surfaces.join('\n'));
         } catch (e) { allTokens = []; }
 
-        // \n 토큰을 경계로 각 단어의 첫 번째 실질 토큰 품사 추출
-        let wi = 0, fresh = true;
+        // \n 토큰 경계로 그룹 분할 → extractPos로 각 단어 품사 결정
+        let wi = 0, groupToks = [];
         for (const tok of allTokens) {
           if (!tok) continue;
           if (tok.surface_form === '\n') {
+            if (wi < batch.length) batch[wi].pos = extractPos(groupToks);
             wi++;
-            fresh = true;
-          } else if (fresh && wi < batch.length) {
-            batch[wi].pos = (tok.pos && tok.pos !== '*') ? tok.pos : '';
-            fresh = false;
+            groupToks = [];
+          } else {
+            groupToks.push(tok);
           }
         }
+        // 마지막 단어 처리 (끝에 \n이 없으므로)
+        if (wi < batch.length) batch[wi].pos = extractPos(groupToks);
 
         const done = Math.min(i + BATCH, rows.length);
         _dictDlSetProgress(
