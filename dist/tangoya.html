@@ -4771,10 +4771,9 @@
   /**
    * JLPT_DICT + customWords → 중복 없는 행 배열
    * · surface === entry.r 인 히라가나 중복 키 스킵
-   * · krEdits 한국어뜻 우선 적용
+   * · pos 필드는 runDictDownload()에서 Kuromoji로 채움
    */
   function _dictBuildRows() {
-    const krEdits     = loadKrEdits();
     const customWords = loadCustomWords();
     const LEVEL_ORDER = { N5:1, N4:2, N3:3, N2:4, N1:5, '外':6, '文法':7 };
     const rows = [];
@@ -4785,16 +4784,11 @@
       if (seen.has(surface)) continue;
       seen.add(surface);
 
-      const krEntryS = krEdits[surface];
-      const krEntryR = krEdits[entry.r];
-      const krEntry  = krEntryS !== undefined ? krEntryS : krEntryR;
-      const korean   = krEntry !== undefined ? getKrEditValue(krEntry) : entry.k;
-
       rows.push({
         surface,
         reading: entry.r || '',
         level:   entry.l,
-        korean:  korean || '-',
+        pos:     '',           // Kuromoji 품사 분석으로 채움
         _rank:   LEVEL_ORDER[entry.l] ?? 9
       });
     }
@@ -4805,7 +4799,6 @@
       if (existing) {
         existing.reading = w.reading || existing.reading;
         existing.level   = w.level   || existing.level;
-        existing.korean  = w.korean  || existing.korean;
         existing._rank   = LEVEL_ORDER[w.level] ?? 9;
       } else {
         seen.add(w.surface);
@@ -4813,7 +4806,7 @@
           surface: w.surface,
           reading: w.reading || '',
           level:   w.level   || '外',
-          korean:  w.korean  || '-',
+          pos:     '',
           _rank:   LEVEL_ORDER[w.level] ?? 9
         });
       }
@@ -4828,75 +4821,57 @@
     return rows;
   }
 
-  /**
-   * 30개 단어를 \n으로 묶어 Google 번역 (ja → ko)
-   * data[0] 배열의 각 조각을 합산 후 \n 분리
-   */
-  async function _dictTranslateBatch(batch) {
-    const text = batch.map(w => w.surface).join('\n');
-    try {
-      const url = 'https://translate.googleapis.com/translate_a/single'
-        + '?client=gtx&sl=ja&tl=ko&dt=t&q=' + encodeURIComponent(text);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      const fullTl = data[0].map(c => c[0]).join('');
-      const parts  = fullTl.split('\n');
-      batch.forEach((w, i) => {
-        const t = (parts[i] || '').trim();
-        if (t) w.korean = t;
-      });
-    } catch (e) {
-      console.warn('[_dictTranslateBatch]', e);
-    }
-  }
-
   /** 메인 다운로드 프로세스 (openDictDlModal에서 호출) */
   async function runDictDownload() {
-    const BATCH = 30;
+    const BATCH = 300;   // Kuromoji 동기 처리: 300개씩 묶어 UI 스레드 양보
 
     // ① 단어 수집
     _dictDlSetProgress('단어 수집 중…', 2);
     const rows = _dictBuildRows();
     if (_dictDlCancelled) return;
 
-    // ② 번역 필요 행 파악
-    const toTl    = rows.filter(r => !r.korean || r.korean === '-');
-    const totalTl = toTl.length;
     document.getElementById('dictDlDetail').textContent =
-      `총 ${rows.length.toLocaleString()}개 단어 · 번역 필요: ${totalTl.toLocaleString()}개\n`
-      + '(한국어 뜻이 없는 단어를 Google 번역으로 자동 보완합니다)';
+      `총 ${rows.length.toLocaleString()}개 단어 · 품사 분석 중…`;
+    await new Promise(r => setTimeout(r, 100));
 
-    await new Promise(r => setTimeout(r, 200)); // UI 반영 대기
-
-    // ③ 배치 번역
-    for (let i = 0; i < toTl.length; i += BATCH) {
-      if (_dictDlCancelled) return;
-      await _dictTranslateBatch(toTl.slice(i, i + BATCH));
-      const done = Math.min(i + BATCH, totalTl);
-      _dictDlSetProgress(
-        `번역 중… ${done.toLocaleString()} / ${totalTl.toLocaleString()}`,
-        Math.round(done / totalTl * 90)
-      );
-      await new Promise(r => setTimeout(r, 120));
+    // ② Kuromoji 품사 분석 (배치: UI 블로킹 방지)
+    if (tokenizer) {
+      for (let i = 0; i < rows.length; i += BATCH) {
+        if (_dictDlCancelled) return;
+        const batch = rows.slice(i, i + BATCH);
+        for (const row of batch) {
+          try {
+            const tokens = tokenizer.tokenize(row.surface);
+            row.pos = (tokens && tokens[0]) ? (tokens[0].pos || '') : '';
+          } catch (e) {
+            row.pos = '';
+          }
+        }
+        const done = Math.min(i + BATCH, rows.length);
+        _dictDlSetProgress(
+          `품사 분석 중… ${done.toLocaleString()} / ${rows.length.toLocaleString()}`,
+          Math.round(done / rows.length * 88) + 5
+        );
+        await new Promise(r => setTimeout(r, 0)); // UI 스레드 양보
+      }
     }
     if (_dictDlCancelled) return;
 
-    // ④ CSV 생성 & 다운로드
-    _dictDlSetProgress('CSV 생성 중…', 95);
-    const q = v => '"' + String(v === '-' ? '' : (v ?? '')).replace(/"/g, '""') + '"';
-    const header  = '한자표기,읽기(히라가나),JLPT레벨,한국어뜻';
+    // ③ CSV 생성 & 다운로드
+    _dictDlSetProgress('CSV 생성 중…', 96);
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const header  = '한자표기,읽기(히라가나),품사,JLPT레벨';
     const csvRows = rows.map(r =>
-      [r.surface, r.reading, r.level, r.korean].map(q).join(',')
+      [r.surface, r.reading, r.pos, r.level].map(q).join(',')
     );
     const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
     downloadFile(header + '\n' + csvRows.join('\n'),
                  `tangoya_dict_${today}.csv`, 'text/csv');
 
-    // ⑤ 완료
+    // ④ 완료
     _dictDlSetProgress('완료! 다운로드 중…', 100);
     document.getElementById('dictDlDetail').textContent =
-      `${rows.length.toLocaleString()}개 단어 · Google 번역 보완: ${totalTl.toLocaleString()}개`;
+      `${rows.length.toLocaleString()}개 단어 다운로드 완료`;
     const cancelBtn = document.getElementById('dictDlCancelBtn');
     cancelBtn.textContent = '닫기';
     setTimeout(() => { if (!_dictDlCancelled) closeDictDlModal(); }, 2000);
