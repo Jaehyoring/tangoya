@@ -822,6 +822,56 @@
     }
 
     /* ── 다운로드 섹션 ── */
+    /* ══════════════════════════════════════════
+       번역 섹션
+       ══════════════════════════════════════════ */
+    #translationSection {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+    }
+    #translationSection.visible { display: block; }
+
+    .translation-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .translation-label {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .translation-badge {
+      font-size: 10px;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+      opacity: 0.55;
+      margin-left: auto;
+    }
+    .translation-text {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.75;
+      word-break: keep-all;
+    }
+    .translation-text.loading {
+      color: var(--muted);
+      font-size: 13px;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    .translation-text.error {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .download-section {
       display: flex;
       align-items: center;
@@ -2414,6 +2464,15 @@
   <section id="resultArea" aria-label="분석 결과">
     <div id="resultContent"></div>
 
+    <!-- 번역 섹션 -->
+    <div id="translationSection" aria-live="polite" aria-label="한국어 번역">
+      <div class="translation-header">
+        <span class="translation-label">한국어 번역</span>
+        <span class="translation-badge">via Google 번역</span>
+      </div>
+      <div id="translationText" class="translation-text"></div>
+    </div>
+
     <!-- 다운로드 섹션 -->
     <div class="download-section">
       <span class="download-label">EXPORT</span>
@@ -3925,6 +3984,7 @@
         analyzedAt: new Date().toISOString()
       };
       showResult(editedTokens, text);
+      translateText(text);   // 비동기 번역 (분석 완료 후 병렬 요청)
 
     } catch (err) {
       showError('분석 중 오류가 발생했습니다: ' + err.message);
@@ -4498,6 +4558,51 @@
     hideError();
     showLoading(false);
     lastResult = null;
+    showTranslation('', 'hide');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // 한국어 번역 (구글 번역 비공식 API)
+  // ══════════════════════════════════════════════════════
+
+  /**
+   * 번역 섹션 UI 갱신
+   * @param {string} text     - 표시할 텍스트
+   * @param {'loading'|'done'|'error'|'hide'} state
+   */
+  function showTranslation(text, state) {
+    const section = document.getElementById('translationSection');
+    const el      = document.getElementById('translationText');
+    if (!section || !el) return;
+    if (state === 'hide') {
+      section.classList.remove('visible');
+      return;
+    }
+    section.classList.add('visible');
+    el.className = 'translation-text' + (state !== 'done' ? ' ' + state : '');
+    el.textContent = text;
+  }
+
+  /**
+   * 일본어 텍스트를 한국어로 번역 (구글 번역 비공식 엔드포인트)
+   * 별도 API 키 불필요 — client=gtx 파라미터 사용
+   */
+  async function translateText(text) {
+    showTranslation('번역 중…', 'loading');
+    try {
+      const url = 'https://translate.googleapis.com/translate_a/single'
+        + '?client=gtx&sl=ja&tl=ko&dt=t&q='
+        + encodeURIComponent(text);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      // data[0]: [ ["번역조각","원문조각",...], ... ]
+      const translated = data[0].map(chunk => chunk[0]).join('');
+      showTranslation(translated, 'done');
+    } catch (err) {
+      showTranslation('번역을 불러오지 못했습니다. (네트워크 오류)', 'error');
+      console.warn('[translateText]', err);
+    }
   }
 
   // ══════════════════════════════════════════════════════
