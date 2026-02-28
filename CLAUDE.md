@@ -9,9 +9,9 @@
 | 항목 | 내용 |
 |------|------|
 | 앱 이름 | tangoya (単語屋) |
-| 목적 | 일본어 텍스트 입력 → 형태소별 JLPT 레벨 판정 + 한국어 뜻 표시 |
-| 배포 방식 | 단일 HTML 파일 (`dist/tangoya.html`), 서버 불필요 |
-| CDN 의존성 | Kuromoji.js v0.1.2 (형태소 분석), Google Fonts (Noto Serif JP / Noto Sans KR / DM Mono) |
+| 목적 | 일본어 텍스트 입력 → 형태소별 JLPT 레벨 판정 + 한국어 뜻 표시 + 한국어 번역 |
+| 배포 방식 | 단일 HTML 파일 (`dist/tangoya.html`), 로컬 HTTP 서버 필요 |
+| CDN 의존성 | Kuromoji.js v0.1.2 (형태소 분석), Google Fonts (로컬 캐시), Google Translate 비공식 API |
 | UI 언어 | 한국어 |
 | 입력 언어 | 일본어 |
 | 최종 배포 파일 크기 | ~824 KB |
@@ -38,7 +38,7 @@ tangoya/
 │   ├── build_html.py              (HTML 빌드 자동화)
 │   └── jlpt_dict.json             (13,680개 항목 — 참고/디버그용)
 └── dist/
-    ├── tangoya_template.html      ← ✏️ UI 수정 대상 파일 (플레이스홀더 포함, ~81 KB)
+    ├── tangoya_template.html      ← ✏️ UI 수정 대상 파일 (플레이스홀더 포함, ~154 KB)
     └── tangoya.html               ← ✅ 최종 배포 파일 (JLPT_DICT 내장, ~824 KB)
 ```
 
@@ -70,15 +70,15 @@ EOF
 
 ## 3. HTML 파일 전체 구조
 
-`tangoya_template.html` (2,544 lines)의 구조:
+`tangoya_template.html` (~154 KB)의 구조:
 
 | 구간 | 내용 | 비율 |
 |------|------|------|
 | Lines 1–15 | `<!DOCTYPE html>`, `<head>`, CDN 로드 | ~1% |
 | Lines 16–1220 | `<style>` CSS 전체 | ~47% |
 | Lines 1222–1355 | HTML Body (toolbar, modals, header, input, result area) | ~5% |
-| Lines 1356–2541 | `<script>` JavaScript 전체 | ~47% |
-| Line 1360 | `// __JLPT_DICT_PLACEHOLDER__` → 빌드 시 JLPT_DICT 삽입 지점 | — |
+| Lines 1356–끝 | `<script>` JavaScript 전체 | ~47% |
+| Line ~1360 | `// __JLPT_DICT_PLACEHOLDER__` → 빌드 시 JLPT_DICT 삽입 지점 | — |
 
 ### HTML 주요 요소
 
@@ -86,13 +86,47 @@ EOF
 <!-- 툴바 (fixed, top-right) -->
 <div id="toolbar">
   <button id="themeBtn" onclick="toggleTheme()">🌙</button>
+  <button id="addWordBtn" onclick="openAddWordModal()">+</button>
   <button id="adminBtn" onclick="openAdminModal()">🔒</button>
+  <button id="criteriaUploadBtn" title="레벨 분류 기준 CSV 업로드">📋</button>
+  <button id="syncBtn" onclick="openSyncModal()">☁</button>
+  <!-- 관리자 모드에서만 표시 -->
+  <button id="dictDownloadBtn" onclick="openDictDlModal()" style="display:none">📖</button>
+  <button id="dictEditBtn" onclick="openDictEditModal()" style="display:none">✏</button>
 </div>
 
 <!-- 관리자 패스워드 모달 -->
 <div id="adminModal" role="dialog" aria-modal="true">
   <input type="password" id="adminPwInput" onkeydown="Enter→confirmAdmin(), Esc→closeAdminModal()">
   <div id="adminPwError"></div>
+</div>
+
+<!-- 사전 수정 모달 (관리자 전용) -->
+<div id="dictEditModal" role="dialog" aria-modal="true" aria-labelledby="dictEditTitle">
+  <div class="dict-edit-box">
+    <!-- 탭: 전체 / 수정된 / 커스텀 단어 -->
+    <div class="dict-edit-tabs">
+      <button class="dict-edit-tab active" data-tab="all">전체</button>
+      <button class="dict-edit-tab" data-tab="edited">수정된</button>
+      <button class="dict-edit-tab" data-tab="custom">커스텀</button>
+    </div>
+    <!-- 검색 + 레벨 필터 -->
+    <input id="dictEditSearch" type="text" placeholder="검색…" oninput="refreshDictEditList()">
+    <select id="dictEditLevelFilter" onchange="refreshDictEditList()">…</select>
+    <!-- 결과 목록 -->
+    <div id="dictEditList">…</div>
+    <div id="dictEditInfo">…</div>
+  </div>
+</div>
+
+<!-- 사전 CSV 다운로드 진행 모달 (관리자 전용) -->
+<div id="dictDlModal" role="dialog" aria-modal="true" aria-labelledby="dictDlTitle">
+  <div class="dict-dl-box">
+    <div id="dictDlStatus">준비 중…</div>
+    <div class="dict-dl-progress-wrap"><div class="dict-dl-bar" id="dictDlBar"></div></div>
+    <div id="dictDlDetail"></div>
+    <button onclick="closeDictDlModal()">취소</button>
+  </div>
 </div>
 
 <!-- 헤더 -->
@@ -119,6 +153,14 @@ EOF
 <!-- 결과 영역 -->
 <section id="resultArea" aria-label="분석 결과">
   <div id="resultContent"></div>   <!-- showResult()가 innerHTML 주입 -->
+  <!-- 한국어 번역 (analyze() 후 자동 표시) -->
+  <div id="translationSection" aria-live="polite" aria-label="한국어 번역">
+    <div class="translation-header">
+      <span class="translation-label">한국어 번역</span>
+      <span class="translation-badge">via Google 번역</span>
+    </div>
+    <div id="translationText" class="translation-text"></div>
+  </div>
   <div class="download-section">
     <button onclick="downloadJSON()">⬇ JSON</button>
     <button onclick="downloadCSV()">⬇ CSV</button>
@@ -165,17 +207,23 @@ EOF
   "あう":  {"r": "あう",  "l": "N5", "k": "만나다"}
 }
 ```
-- 키: 한자형 + 히라가나형 **이중 등록** (총 13,680개 항목)
+- 키: 한자형 + 히라가나형 **이중 등록** (총 13,680개 항목, 고유 단어 6,823개)
 - `r`: reading(읽기), `l`: level(레벨), `k`: korean(한국어 뜻)
 - **N5 우선 원칙**: 같은 단어가 복수 레벨에 존재하면 낮은 급수(N5 > N4 > … > N1)로 등록
 - 빌드 시 N5 → N4 → N3 → N2 → N1 순 처리, "먼저 등록된 항목 유지" 정책 적용
+
+### 4-4. 사전 CSV 내보내기 중복 제거 규칙
+
+JLPT_DICT에는 한자형·히라가나형 이중 등록이 있으므로 CSV 다운로드 시 중복 제거가 필요하다.
+- **스킵 조건**: `key === entry.r` (표층형이 읽기와 동일 = 순수 히라가나 키) → 한자형 키만 남김
+- 결과: 13,680개 항목 → **6,823개** 고유 단어
 
 ---
 
 ## 5. JLPT_DICT 플레이스홀더 시스템
 
 ```
-tangoya_template.html 안의 한 줄(line 1360):
+tangoya_template.html 안의 한 줄(~line 1360):
   // __JLPT_DICT_PLACEHOLDER__
 
 → build_html.py 실행 시 아래로 교체:
@@ -192,10 +240,13 @@ tangoya_template.html 안의 한 줄(line 1360):
 ### 6-1. 전역 상태 변수
 
 ```javascript
-let tokenizer  = null;     // Kuromoji 인스턴스 (최초 1회 초기화)
-let initFailed = false;    // Kuromoji 초기화 실패 여부
-let lastResult = null;     // 최신 분석 결과 { input, rawTokens, tokens, analyzedAt }
-let isAdminMode = false;   // 관리자 모드 활성화 여부
+let tokenizer      = null;     // Kuromoji 인스턴스 (최초 1회 초기화)
+let initFailed     = false;    // Kuromoji 초기화 실패 여부
+let lastResult     = null;     // 최신 분석 결과 { input, rawTokens, tokens, analyzedAt }
+let isAdminMode    = false;    // 관리자 모드 활성화 여부
+let _dictDlCancelled = false;  // 사전 CSV 다운로드 취소 플래그
+let _dictEditTab   = 'all';    // 사전 수정 모달 현재 탭 ('all'|'edited'|'custom')
+let _dictEditTimer = null;     // 사전 수정 목록 debounce 타이머 ID
 ```
 
 ### 6-2. 핵심 상수
@@ -211,11 +262,11 @@ const LEVEL_COLOR = {           // updateLevelColors()에서 테마별로 동적
 
 const GRAMMAR_POS = ['助詞','助動詞','記号','接続詞'];  // 항상 '文法'으로 판정
 
-const ADMIN_PW       = '4649';
-const THEME_KEY      = 'tangoya_theme';
-const KR_EDITS_KEY   = 'tangoya_kr_edits';
-const MERGE_RULES_KEY= 'tangoya_merge_rules';
-const ADMIN_EDITS_KEY= 'tangoya_admin_edits';
+const ADMIN_PW        = '4649';
+const THEME_KEY       = 'tangoya_theme';
+const KR_EDITS_KEY    = 'tangoya_kr_edits';
+const MERGE_RULES_KEY = 'tangoya_merge_rules';
+const ADMIN_EDITS_KEY = 'tangoya_admin_edits';
 ```
 
 ### 6-3. localStorage 키
@@ -268,6 +319,9 @@ analyze() 호출
 ⑥ lastResult = { input, rawTokens, tokens, analyzedAt } 저장
   ↓
 ⑦ showResult(tokens, inputText) — Case A / Case B 렌더링
+  ↓
+⑧ translateText(text) — Google Translate API로 전문 한국어 번역
+    (비동기; 결과는 #translationSection에 순차 표시)
 ```
 
 ### 6-6. lookupWord 동작 원칙
@@ -299,6 +353,22 @@ function lookupWord(surface, baseForm, reading) {
 - **반드시** `keepLowest()` 패턴 유지 — 첫 번째 히트에서 즉시 return 금지
 - GRAMMAR_POS 해당 시 JLPT_DICT 조회 없이 `level = '文法'`
 
+### 6-7. Google Translate 비공식 API
+
+```javascript
+// 엔드포인트 (API 키 불필요)
+const url = 'https://translate.googleapis.com/translate_a/single'
+  + '?client=gtx&sl=ja&tl=ko&dt=t&q=' + encodeURIComponent(text);
+
+// 응답 파싱
+const data = await (await fetch(url)).json();
+const translated = data[0].map(chunk => chunk[0]).join('');
+```
+
+- **배치 번역**: 30개 단어를 `\n`으로 연결하여 1회 요청; 응답 `\n` 분리로 복원
+- **오류 처리**: fetch 실패 시 `showTranslation('번역 불러오기 실패…', 'error')` 표시
+- **취소 플래그**: `_dictDlCancelled = true` 시 루프 중단
+
 ---
 
 ## 7. 함수 목록
@@ -307,7 +377,7 @@ function lookupWord(surface, baseForm, reading) {
 
 | 함수 | 역할 |
 |------|------|
-| `analyze()` | 메인 분석 진입점. 유효성 검사 → Kuromoji → 후처리 → 렌더링 |
+| `analyze()` | 메인 분석 진입점. 유효성 검사 → Kuromoji → 후처리 → 렌더링 → 번역 |
 | `initKuromoji()` | Kuromoji 초기화 (Promise 반환, 최초 1회, IIFE로 자동 실행) |
 | `lookupWord(surface, baseForm, reading)` | JLPT_DICT 조회, keepLowest 패턴으로 최저 레벨 반환 |
 | `toKatakana(str)` | 히라가나 → 가타카나 (코드포인트 +0x60) |
@@ -324,6 +394,13 @@ function lookupWord(surface, baseForm, reading) {
 | `showLoading(bool)` | #loading 요소 visible 토글 |
 | `showError(msg)` / `hideError()` | #errorMsg 표시/숨김 |
 | `showLangModal()` / `closeLangModal()` | 언어 경고 모달 열기/닫기 |
+
+### 번역
+
+| 함수 | 역할 |
+|------|------|
+| `showTranslation(text, state)` | `#translationSection` 표시/갱신. state: `'loading'`\|`'done'`\|`'error'`\|`'hide'` |
+| `translateText(text)` | Google Translate 비공식 API로 일본어 전문을 한국어로 번역 (async) |
 
 ### 한국어 뜻 편집
 
@@ -359,13 +436,37 @@ function lookupWord(surface, baseForm, reading) {
 | `openAdminModal()` | 이미 admin이면 exitAdminMode(), 아니면 패스워드 모달 표시 |
 | `closeAdminModal()` | 모달 숨김, 비밀번호 및 에러 초기화 |
 | `confirmAdmin()` | '4649' 확인 → enterAdminMode() / 오류 시 shake 애니메이션 |
-| `enterAdminMode()` | isAdminMode=true, body.admin-mode, 🔓, 재렌더 |
-| `exitAdminMode()` | isAdminMode=false, class 제거, 🔒, 재렌더 |
+| `enterAdminMode()` | isAdminMode=true, body.admin-mode, 🔓, krEdits 재적용, 재렌더 |
+| `exitAdminMode()` | isAdminMode=false, class 제거, 🔒, krEdits 재적용, 재렌더 |
 | `loadAdminEdits()` / `saveAdminEdit(inputText, origIdx, field, value)` | localStorage 입출력 |
 | `getAdminEdit(inputText, origIdx)` | 특정 토큰의 편집 내역 반환 |
 | `applyAdminEdits(tokens, inputText)` | reading/level/pos/surface/baseForm 복원 |
 | `adminSaveField(el)` | 이벤트 위임 핸들러: 필드 저장 + lastResult 갱신 + 재렌더 |
 | `resetAdminEdits()` | 전체 초기화 (confirm → removeItem → reload) |
+
+### 사전 수정 모달 (관리자 전용)
+
+| 함수 | 역할 |
+|------|------|
+| `openDictEditModal()` | 모달 표시, 탭·검색 초기화, 목록 렌더 (관리자 전용) |
+| `closeDictEditModal()` | 모달 숨김 |
+| `_updateDictTabUI()` | 탭 버튼 active 클래스 갱신 |
+| `refreshDictEditList()` | 80ms debounce 후 `_renderDictList()` 호출 |
+| `_renderDictList()` | 탭·검색어·레벨 필터에 따라 목록 HTML 생성 (최대 150개 표시) |
+| `startDictKrEdit(el)` | 목록 행 한국어 뜻 클릭 → input으로 교체하여 인라인 편집 시작 |
+| `commitDictKrEdit(input)` | 편집 저장: updateKrEdit + lastResult 갱신 + span 복원 |
+| `cancelDictKrEdit(input)` | 편집 취소: 원본 span 복원 |
+
+### 사전 CSV 다운로드 (관리자 전용)
+
+| 함수 | 역할 |
+|------|------|
+| `openDictDlModal()` | 진행 모달 표시, `runDictDownload()` 비동기 시작 (관리자 전용) |
+| `closeDictDlModal()` | 취소 플래그 설정 + 모달 숨김 |
+| `_dictDlSetProgress(msg, pct)` | 진행 상태 메시지 + 프로그레스 바 너비 갱신 |
+| `_dictBuildRows()` | JLPT_DICT 순회 → 중복 제거(6,823개) → krEdits·커스텀 단어 반영 → 레벨순 정렬 |
+| `_dictTranslateBatch(batch)` | 단어 최대 30개 `\n` 연결 → Google Translate 1회 요청 → 각 단어에 뜻 설정 |
+| `runDictDownload()` | 전체 오케스트레이터: 수집 → 번역 루프 → CSV 생성 → `downloadFile()` |
 
 ### 테마 & 기타
 
@@ -374,7 +475,7 @@ function lookupWord(surface, baseForm, reading) {
 | `applyTheme(theme)` | 'light'/'dark' 적용, body 클래스 토글, 버튼 이모지 갱신, localStorage 저장 |
 | `toggleTheme()` | 현재 테마 감지 후 반전 |
 | `updateLevelColors()` | LEVEL_COLOR 객체를 테마에 맞게 갱신 (다크: 밝은 색, 라이트: 어두운 색) |
-| `resetAll()` | 입력 + 결과 + 에러 초기화, lastResult=null |
+| `resetAll()` | 입력 + 결과 + 번역 + 에러 초기화, lastResult=null |
 | `downloadFile(content, filename, mimeType)` | UTF-8 BOM Blob 생성 + 앵커 다운로드 트리거 |
 | `downloadJSON()` / `downloadCSV()` / `downloadTXT()` | 결과 내보내기 (snake_case JSON / 탭구분 CSV / 텍스트) |
 
@@ -409,6 +510,9 @@ function lookupWord(surface, baseForm, reading) {
 [TEXT PREVIEW 섹션]
 ```
 
+> **번역 섹션**: `showResult()` 완료 후 `translateText(text)`가 비동기 호출되어
+> `#translationSection`에 번역 결과가 순차적으로 표시됨 (로딩 → 완료/오류).
+
 ### 관리자 모드 편집 가능 필드
 
 | 필드 | data-field | 타입 | CSS 클래스 |
@@ -426,7 +530,7 @@ function lookupWord(surface, baseForm, reading) {
 **⚠️ 중요**: innerHTML 주입으로 생성된 요소에는 `onclick` 속성 방식 사용 금지.
 동적 요소의 이벤트는 반드시 `document.addEventListener`로 위임 처리.
 
-DOMContentLoaded 내에서 등록되는 4가지 위임 핸들러:
+DOMContentLoaded 내에서 등록되는 위임 핸들러:
 
 ```javascript
 // ① select 변경 → adminSaveField
@@ -463,6 +567,21 @@ document.addEventListener('click', e => {
   }
   if (el.classList.contains('btn-add-kr') || el.classList.contains('btn-add-word-kr')) {
     e.stopPropagation(); startKrEditFromBtn(el);
+  }
+  // 사전 수정 모달: 한국어 뜻 인라인 편집
+  if (el.classList.contains('dict-edit-kr')) {
+    startDictKrEdit(el);
+  }
+  // 사전 수정 모달: 수정 삭제 버튼
+  if (el.classList.contains('dict-edit-del-btn')) {
+    const surface = el.dataset.deSurface;
+    if (surface) { updateKrEdit(surface, ''); refreshDictEditList(); }
+  }
+  // 사전 수정 모달: 탭 전환
+  if (el.classList.contains('dict-edit-tab')) {
+    _dictEditTab = el.dataset.tab || 'all';
+    _updateDictTabUI();
+    refreshDictEditList();
   }
 });
 
@@ -548,7 +667,65 @@ body.light-mode {
                        box-shadow: 0 0 0 2px rgba(0,230,118,0.22) !important; }
 ```
 
-### 10-4. 주요 레이아웃 클래스
+### 10-4. 번역 섹션 CSS
+
+```css
+#translationSection {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+}
+#translationSection.visible { display: block; }
+.translation-label { font-size: 10px; font-family: 'DM Mono', monospace;
+                     color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.translation-badge { font-size: 10px; font-family: 'DM Mono', monospace;
+                     color: var(--muted); opacity: 0.55; margin-left: auto; }
+.translation-text  { font-family: 'Noto Sans KR', sans-serif; font-size: 15px;
+                     font-weight: 400; color: var(--text); line-height: 1.75; word-break: keep-all; }
+.translation-text.loading { color: var(--muted); font-size: 13px;
+                             animation: pulse 1.4s ease-in-out infinite; }
+.translation-text.error   { color: var(--muted); font-size: 12px; }
+```
+
+### 10-5. 사전 CSV 다운로드 진행 모달 CSS
+
+```css
+#dictDlModal { display: none; position: fixed; inset: 0; z-index: 9999;
+               align-items: center; justify-content: center;
+               background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+#dictDlModal.visible { display: flex; }
+.dict-dl-box { background: var(--surface); border: 1px solid var(--border);
+               border-radius: var(--radius-lg); padding: 28px 32px;
+               width: 420px; max-width: 92vw; display: flex; flex-direction: column;
+               gap: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+               animation: slideUp 0.22s ease; }
+.dict-dl-bar { height: 100%;
+               background: linear-gradient(90deg, #40c4ff 0%, #00e676 100%);
+               border-radius: 99px; width: 0%; transition: width 0.3s ease; }
+```
+
+### 10-6. 사전 수정 모달 CSS (주요)
+
+```css
+#dictEditModal { display: none; position: fixed; inset: 0; z-index: 9000;
+                 align-items: center; justify-content: center;
+                 background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
+#dictEditModal.visible { display: flex; }
+.dict-edit-box   { background: var(--surface); border-radius: var(--radius-lg);
+                   width: 600px; max-width: 95vw; max-height: 80vh;
+                   display: flex; flex-direction: column; }
+.dict-edit-tab   { /* monospace, 11px; .active 시 밑줄 강조 */ }
+.dict-edit-row   { display: grid; grid-template-columns: 1fr 1fr auto auto auto;
+                   align-items: center; gap: 8px; padding: 6px 0;
+                   border-bottom: 1px solid var(--border); }
+.dict-edit-kr.edited { color: #ffd600; }   /* 수정된 뜻: 노란색 */
+.dict-edit-kr.empty  { color: var(--muted); font-style: italic; }  /* (없음) */
+.dict-edit-kr-input  { /* admin-input 스타일 준용, font-size 11px */ }
+```
+
+### 10-7. 주요 레이아웃 클래스
 
 ```css
 .container         /* max-width:860px, flex column, gap:32px */
@@ -572,17 +749,17 @@ body.light-mode {
 .token-card.merged /* 점선 테두리, 0.5 opacity */
 ```
 
-### 10-5. 애니메이션
+### 10-8. 애니메이션
 
 ```css
-@keyframes pulse    { 0%/100%: opacity:1; 50%: opacity:0.35 }  /* 2.4s — 배지 점 */
+@keyframes pulse    { 0%/100%: opacity:1; 50%: opacity:0.35 }  /* 2.4s — 배지 점, 번역 로딩 */
 @keyframes spin     { to: rotate(360deg) }                       /* 0.8s — 로딩 스피너 */
 @keyframes slideUp  { from: translateY(20px) scale(0.96) }       /* 0.22s — 모달 진입 */
 @keyframes fadeIn   { from: opacity:0 }                          /* 모달 배경 */
 @keyframes shake    { 0/100%:0; 25%:-6px; 75%:+6px }            /* 패스워드 오류 */
 ```
 
-### 10-6. 반응형
+### 10-9. 반응형
 
 - **모바일 브레이크포인트**: `@media (max-width: 480px)`
   - body padding 감소, 카드 padding 축소
@@ -599,18 +776,22 @@ body.light-mode {
    - `isAdminMode = true`
    - `document.body.classList.add('admin-mode')`
    - adminBtn: `'🔓'` + `admin-active` 클래스
-   - `showResult(lastResult.tokens, lastResult.input)` 재렌더
+   - `dictDownloadBtn`, `dictEditBtn` 표시
+   - **krEdits 재적용**: `lastResult.tokens`에 `loadKrEdits()`를 다시 적용한 뒤 재렌더
+     → ⚠️ 이 단계 없이 바로 `showResult()`를 호출하면 저장된 한국어 뜻이 초기화됨
 3. 🔓 클릭 → `exitAdminMode()`:
    - `isAdminMode = false`
    - `document.body.classList.remove('admin-mode')`
-   - adminBtn: `'🔒'`
-   - `showResult()` 재렌더
+   - adminBtn: `'🔒'`, `dictDownloadBtn`/`dictEditBtn` 숨김
+   - **krEdits 재적용** 후 `showResult()` 재렌더 (동일 원칙)
 4. 오류 패스워드: 입력 필드 `shake` 애니메이션, 에러 메시지 1.2초 표시 후 자동 초기화
 5. **관리자 모드에서만 활성화**:
    - 토큰 필드 편집 (reading / surface / baseForm / level / pos)
    - 한국어 뜻 인라인 편집 (`.token-kr`, `.word-kr` 클릭)
    - `+ 뜻 추가` 버튼 (`.btn-add-kr`, `.btn-add-word-kr`)
    - 병합(+) / 병합 취소(✕) 버튼
+   - ✏ 사전 수정 모달 (`openDictEditModal()`)
+   - 📖 사전 CSV 다운로드 (`openDictDlModal()`)
 
 ---
 
@@ -630,6 +811,19 @@ span 복원 (edited 클래스 + '✎' 마커)
 - `cancelKrEdit(input)`: Escape 시 원본 span 복원 (저장 없음)
 - `startKrEditFromBtn(btn)`: `+ 뜻 추가` 버튼에서 시작하는 경우 (dataset.fromBtn='true')
 - `commitKrEdit`/`cancelKrEdit`에서 `onclick` 직접 할당 금지 (이벤트 위임으로 처리)
+
+### 사전 수정 모달 내 편집
+
+```
+dict-edit-kr span 클릭
+  ↓ startDictKrEdit(el)
+span → dict-edit-kr-input으로 교체
+Enter/blur → commitDictKrEdit(input)
+  updateKrEdit(surface, newKorean)  →  JLPT_DICT + localStorage
+  lastResult.tokens 인메모리 업데이트
+  span 복원 (edited 클래스)
+Escape → cancelDictKrEdit(input)
+```
 
 ---
 
@@ -715,6 +909,8 @@ python3 build/build_html.py
 5. `surface`/`baseForm` 변경 시 재렌더 트리거 누락 → `adminSaveField()`에서 재렌더
 6. `commitKrEdit`/`cancelKrEdit`에서 span에 `onclick` 직접 할당 → 이벤트 위임이 처리
 7. 새 편집 필드 추가 시 `applyAdminEdits()` 업데이트 누락
+8. `enterAdminMode()`/`exitAdminMode()`에서 krEdits 재적용 없이 바로 `showResult()` 호출 → 저장된 한국어 뜻 소실
+9. 사전 CSV 다운로드 중 `_dictDlCancelled` 플래그 체크 누락 → 취소 후에도 계속 실행됨
 
 ### ✅ 해야 할 것
 
@@ -723,6 +919,8 @@ python3 build/build_html.py
 3. 새 편집 필드 추가 시: `applyAdminEdits()`에 복원 코드, `adminSaveField()`에 재렌더 트리거
 4. 모든 사용자 입력 기반 HTML 출력에 `escHtml()` 적용
 5. `lastResult` — 분석 결과 저장 후 재렌더 시 재사용 (`showResult(lastResult.tokens, lastResult.input)`)
+6. `enterAdminMode()`/`exitAdminMode()` 재렌더 전에 `lastResult.tokens`에 krEdits 재적용
+7. 사전 CSV 다운로드 배치 루프에 `_dictDlCancelled` 체크 포함
 
 ---
 
@@ -732,8 +930,11 @@ python3 build/build_html.py
 |------|------|
 | `#langModal` | `role="dialog"`, `aria-modal="true"`, `aria-labelledby="langModalTitle"` |
 | `#adminModal` | `role="dialog"`, `aria-modal="true"` |
+| `#dictEditModal` | `role="dialog"`, `aria-modal="true"`, `aria-labelledby="dictEditTitle"` |
+| `#dictDlModal` | `role="dialog"`, `aria-modal="true"`, `aria-labelledby="dictDlTitle"` |
 | `#errorMsg` | `role="alert"`, `aria-live="polite"` |
 | `#loading` | `aria-live="polite"`, `aria-label="분석 중"` |
+| `#translationSection` | `aria-live="polite"`, `aria-label="한국어 번역"` |
 | `<section>` (입력/결과) | `aria-label` 각각 지정 |
 | `<nav>` (범례) | `aria-label="JLPT 레벨 범례"` |
 
@@ -759,17 +960,24 @@ lastResult.input             // 원본 입력 텍스트
 
 // 병합 규칙 형식
 // {"会う": [[0,1]]}      → '会'(idx:0)와 'う'(idx:1)가 병합됨
+
+// 사전 CSV 다운로드 중 취소
+_dictDlCancelled = true
+
+// 사전 수정 모달 목록 강제 갱신
+_renderDictList()
 ```
 
 **빌드 통계** (build_html.py 실행 시 출력):
 - 레벨별 항목 수, 한국어 뜻 커버리지
-- 중간 사전: `build/jlpt_dict.json` (13,680개 항목)
+- 중간 사전: `build/jlpt_dict.json` (13,680개 항목, 고유 단어 6,823개)
 
 ---
 
 ## 19. 오프라인 배포
 
 tangoya는 인터넷 없이도 완전히 동작한다. 모든 외부 의존성이 `dist/` 폴더에 로컬로 포함되어 있다.
+단, **한국어 번역** 기능과 **사전 CSV 다운로드의 번역 보완** 기능은 Google Translate API를 사용하므로 인터넷 연결이 필요하다.
 
 ### 19-1. 오프라인 파일 구조
 
@@ -804,6 +1012,9 @@ Kuromoji 사전 로더(`BrowserDictionaryLoader`)는 **XMLHttpRequest**로 `dict
 ```bash
 # dist/ 폴더에서 로컬 서버 실행 (포트 8000, 브라우저 자동 열림)
 python3 dist/start_server.py
+
+# 또는 npx serve 사용 (Claude Code 개발 환경에서 권장)
+npx serve -l 8000 /path/to/tangoya/dist
 ```
 
 → `http://localhost:8000/tangoya.html` 자동 실행
@@ -819,11 +1030,12 @@ python3 build/download_offline_assets.py
 
 ### 19-5. CDN 참조 현황
 
-| 항목 | 이전 (온라인) | 현재 (오프라인) |
-|------|--------------|----------------|
+| 항목 | 이전 (온라인) | 현재 (오프라인/하이브리드) |
+|------|--------------|--------------------------|
 | Google Fonts CSS | `https://fonts.googleapis.com/css2?...` | `fonts/fonts.css` |
 | Kuromoji JS | `https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js` | `kuromoji.js` |
 | Kuromoji 사전 | `https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict` | `dict` |
+| Google Translate | N/A | `https://translate.googleapis.com/translate_a/single` (온라인 필요) |
 
 ### 19-6. 에셋 업데이트 주의사항
 
@@ -832,3 +1044,23 @@ python3 build/download_offline_assets.py
 - `tangoya.html`이나 `tangoya_template.html`을 수정해도 로컬 에셋 경로는 변경되지 않음
 - `build_html.py`로 재빌드해도 로컬 경로(`fonts/fonts.css`, `kuromoji.js`, `dict`)는 유지됨
   → `tangoya_template.html`에 이미 로컬 경로로 기록되어 있기 때문
+
+### 19-7. Claude Code 개발 환경 서버 설정
+
+`.claude/launch.json`에 `npx serve`를 사용하는 서버 구성이 등록되어 있다.
+Python `http.server`는 Claude Code 샌드박스에서 `os.getcwd()` 호출로 인해 차단될 수 있으므로
+`npx serve`를 사용하는 것을 권장한다.
+
+```json
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tangoya",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "8000", "/path/to/tangoya/dist"],
+      "port": 8000
+    }
+  ]
+}
+```
